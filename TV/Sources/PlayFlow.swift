@@ -151,7 +151,7 @@ func playChoice(for item: Item, session: Session, mode: PlayMode = .usual) async
     return first?.items?.first.map { VersionChoice(item: $0, startMs: nil, mode: mode) }
 }
 
-/// Lets a page switch the rail's place, as the Continue watching row's Activity button does.
+/// Lets a page switch the rail's place.
 private struct OpenPlaceKey: EnvironmentKey {
     static let defaultValue: (Place) -> Void = { _ in }
 }

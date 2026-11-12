@@ -2,17 +2,21 @@ import SwiftUI
 
 /// The places the rail leads to, in the web app's order (components/layout.tsx).
 enum Place: String, CaseIterable, Identifiable {
-    case account, home, discover, search, favourites, calendar, activity, settings
+    case account, home, discover, live, search, favourites, calendar, activity, settings
 
     var id: String { rawValue }
 
-    static let main: [Place] = [.home, .discover, .search, .favourites, .calendar, .activity]
+    static let main: [Place] = [.home, .discover, .live, .search, .favourites, .calendar, .activity]
+
+    /// What the start page setting offers, as the web app's (lib/start-page.ts).
+    static let startPages: [Place] = [.home, .discover, .live, .favourites, .calendar, .activity]
 
     var name: String {
         switch self {
         case .account: return "You"
         case .home: return "Home"
         case .discover: return "Discover"
+        case .live: return "Live TV"
         case .search: return "Search"
         case .favourites: return "Favourites"
         case .calendar: return "Calendar"
@@ -27,6 +31,7 @@ enum Place: String, CaseIterable, Identifiable {
         case .account: return "person.crop.circle"
         case .home: return "house"
         case .discover: return "safari"
+        case .live: return "play.tv"
         case .search: return "magnifyingglass"
         case .favourites: return "heart"
         case .calendar: return "calendar"
@@ -41,7 +46,10 @@ enum Place: String, CaseIterable, Identifiable {
 struct MainView: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var prefs: Preferences
-    @State private var place: Place = .home
+    /// Opens on the start page; Live TV falls back to Home on a server without it.
+    @State private var place: Place = Place(rawValue: UserDefaults.standard.string(forKey: "app.startPage") ?? "") ?? .home
+    /// The server's Live TV library, which only a server with channels lists.
+    @State private var liveView: Item?
     @State private var paths: [Place: NavigationPath] = [:]
     @FocusState private var railFocus: Place?
     /// What a card's menu asked to play, from any page.
@@ -117,6 +125,7 @@ struct MainView: View {
         .foregroundStyle(.white)
         .animation(.easeOut(duration: 0.2), value: open)
         .playFlow($choice) { NotificationCenter.default.post(name: .watchStateChanged, object: nil) }
+        .task { await findLiveTV() }
         .task {
             await startOnPage()
             guard let client = session.client, let userId = session.userId else { return }
@@ -144,12 +153,23 @@ struct MainView: View {
         switch place {
         case .home: HomeView()
         case .discover: LibrariesView()
+        case .live:
+            if let liveView { LiveTVView(view: liveView) } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         case .search: SearchView()
         case .favourites: FavouritesView()
         case .calendar: CalendarView()
         case .activity: ActivityView()
         case .account, .settings: SettingsView()
         }
+    }
+
+    /// Shows Live TV in the rail when the server has it, and leaves it when the start page asked
+    /// for Live TV on a server without.
+    private func findLiveTV() async {
+        guard let client = session.client, let userId = session.userId else { return }
+        let views: ItemsResult? = try? await client.get("/UserViews", ["userId": userId])
+        liveView = views?.items?.first { $0.collectionType == "livetv" }
+        if liveView == nil && place == .live { place = .home }
     }
 
     /// Screenshot mode only: opens the screen the launch asked for.
@@ -210,7 +230,7 @@ struct MainView: View {
             Rectangle().fill(.white.opacity(0.1)).frame(height: Theme.px(1))
                 .padding(.horizontal, Theme.px(12))
                 .padding(.vertical, Theme.px(4))
-            ForEach(Place.main) { entry($0) }
+            ForEach(Place.main.filter { $0 != .live || liveView != nil }) { entry($0) }
             Spacer(minLength: 0)
             entry(.settings)
         }

@@ -52,6 +52,8 @@ final class PlayerModel: ObservableObject {
     let engine: AetherEngine
     let overlay: SubtitleOverlayView
     let request: PlayRequest
+    /// A channel or another source with no end: played at its live edge, with no seeking.
+    let isLive: Bool
     private let client: JellyfinClient
     private var bag = Set<AnyCancellable>()
     private var loadTask: Task<Void, Never>?
@@ -66,6 +68,7 @@ final class PlayerModel: ObservableObject {
     init(request: PlayRequest, client: JellyfinClient, audioLanguages: [String] = [], subtitleLanguages: [String] = [],
          look: SubtitleLook = SubtitleLook(), speakers: SpatialSpeakerLayout? = .l714) {
         self.request = request
+        isLive = request.source.isInfiniteStream == true || request.item.isChannel
         self.client = client
         self.audioLanguages = audioLanguages
         self.subtitleLanguages = subtitleLanguages
@@ -139,12 +142,13 @@ final class PlayerModel: ObservableObject {
         // TrueHD Atmos and DTS:X with their heights, rendered for the receiver's speakers and sent to it
         // as Dolby MAT (tvOS 26 and later); off, they play as their 7.1 channels.
         options.objectAudioRendering = speakers.map { .render($0) } ?? .off
+        options.isLive = isLive
 
         AppLog.info("player", "load \(request.item.id) source=\(request.source.ownId) host=\(url.host ?? "?")")
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let start = self.request.startMs.map { $0 / 1000 }
+                let start = self.isLive ? nil : self.request.startMs.map { $0 / 1000 }
                 try await self.engine.load(url: url, startPosition: start, options: options)
                 self.engine.play()
                 self.report("/Sessions/Playing")
@@ -329,7 +333,7 @@ final class PlayerModel: ObservableObject {
             "MediaSourceId": request.source.ownId,
             "PositionTicks": Int64(position * 1000 * JellyfinClient.ticksPerMs),
             "IsPaused": paused,
-            "CanSeek": true,
+            "CanSeek": !isLive,
             "PlayMethod": "DirectPlay",
         ]
         if let session = request.playSessionId { body["PlaySessionId"] = session }

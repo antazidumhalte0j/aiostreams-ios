@@ -77,7 +77,7 @@ private struct PlayerChrome: View {
     @State private var swipeSettled: Task<Void, Never>?
 
     private var canScrub: Bool {
-        panel == nil && model.failure == nil && (!shown || focus == .bar || focus == .surface)
+        !model.isLive && panel == nil && model.failure == nil && (!shown || focus == .bar || focus == .surface)
     }
 
     /// A move left or right, which reads as a hold once it repeats quickly, for remotes and
@@ -128,7 +128,7 @@ private struct PlayerChrome: View {
             // Swiping across the remote while paused, with the bar focused, slides along it.
             SwipeScrub(
                 begin: {
-                    guard model.paused, shown, focus == .bar, panel == nil, model.failure == nil,
+                    guard !model.isLive, model.paused, shown, focus == .bar, panel == nil, model.failure == nil,
                           !model.scrubbing else { return false }
                     swiping = true
                     swipeSettled?.cancel()
@@ -155,6 +155,8 @@ private struct PlayerChrome: View {
                 .focused($focus, equals: .surface)
                 .onMoveCommand { direction in
                     switch direction {
+                    // Live, there's nothing to skip through: a press only shows the controls.
+                    case .left where model.isLive, .right where model.isLive: reveal(.play)
                     case .left: if !moved(-1) { model.skip(-10) }; reveal(.bar)
                     case .right: if !moved(1) { model.skip(10) }; reveal(.bar)
                     default: reveal(.play)
@@ -211,6 +213,12 @@ private struct PlayerChrome: View {
                 Text(model.request.item.isEpisode ? (model.request.item.seriesName ?? "") : (model.request.item.name ?? ""))
                     .font(Theme.font(17, .semibold))
                     .lineLimit(1)
+                if model.request.item.isChannel, let programme = model.request.item.currentProgram?.name {
+                    Text(programme)
+                        .font(Theme.font(Theme.sm))
+                        .foregroundStyle(Theme.gray300)
+                        .lineLimit(1)
+                }
                 if model.request.item.isEpisode {
                     Text(model.request.item.displayTitle)
                         .font(Theme.font(Theme.sm))
@@ -232,6 +240,10 @@ private struct PlayerChrome: View {
 
     private var bottomBar: some View {
         VStack(spacing: Theme.px(14)) {
+            if model.isLive {
+                // A live source has no timeline to move along.
+                Capsule().fill(Theme.brand500).frame(height: Theme.px(4))
+            } else {
             ProgressTrack(model: model, focused: focus == .bar)
                 .focusable(shown && panel == nil)
                 .focused($focus, equals: .bar)
@@ -245,6 +257,7 @@ private struct PlayerChrome: View {
                     wake()
                 }
                 .onTapGesture { model.togglePause(); wake() }
+            }
             if model.scrubSpeed != 0 {
                 HStack(spacing: Theme.px(8)) {
                     Image(systemName: model.scrubSpeed > 0 ? "forward.fill" : "backward.fill")
@@ -263,19 +276,28 @@ private struct PlayerChrome: View {
                 }
                 .buttonStyle(BigPlayStyle())
                 .focused($focus, equals: .play)
-                Button { model.skip(-10) } label: { Image(systemName: "gobackward.10") }
-                    .buttonStyle(ControlIconStyle())
-                    .focused($focus, equals: .back)
-                Button { model.skip(10) } label: { Image(systemName: "goforward.10") }
-                    .buttonStyle(ControlIconStyle())
-                    .focused($focus, equals: .forward)
-                HStack(spacing: 0) {
-                    Text(clock(model.scrubTarget ?? model.position))
-                    Text(" / " + clock(model.duration)).foregroundStyle(Theme.gray400)
+                if model.isLive {
+                    Text("LIVE")
+                        .font(Theme.font(Theme.sm, .bold))
+                        .padding(.horizontal, Theme.px(10))
+                        .padding(.vertical, Theme.px(4))
+                        .background(Capsule().fill(Color.red.opacity(0.85)))
+                        .padding(.leading, Theme.px(12))
+                } else {
+                    Button { model.skip(-10) } label: { Image(systemName: "gobackward.10") }
+                        .buttonStyle(ControlIconStyle())
+                        .focused($focus, equals: .back)
+                    Button { model.skip(10) } label: { Image(systemName: "goforward.10") }
+                        .buttonStyle(ControlIconStyle())
+                        .focused($focus, equals: .forward)
+                    HStack(spacing: 0) {
+                        Text(clock(model.scrubTarget ?? model.position))
+                        Text(" / " + clock(model.duration)).foregroundStyle(Theme.gray400)
+                    }
+                    .font(Theme.font(17, .medium))
+                    .monospacedDigit()
+                    .padding(.leading, Theme.px(12))
                 }
-                .font(Theme.font(17, .medium))
-                .monospacedDigit()
-                .padding(.leading, Theme.px(12))
                 Spacer()
                 Button { open(.tracks) } label: { Image(systemName: "captions.bubble") }
                     .buttonStyle(ControlIconStyle())
@@ -285,9 +307,11 @@ private struct PlayerChrome: View {
                         .buttonStyle(ControlIconStyle())
                         .focused($focus, equals: .chapters)
                 }
-                Button { open(.speed) } label: { Image(systemName: "gauge.with.dots.needle.50percent") }
-                    .buttonStyle(ControlIconStyle())
-                    .focused($focus, equals: .speed)
+                if !model.isLive {
+                    Button { open(.speed) } label: { Image(systemName: "gauge.with.dots.needle.50percent") }
+                        .buttonStyle(ControlIconStyle())
+                        .focused($focus, equals: .speed)
+                }
                 Button {
                     let all = PlayerModel.Fit.allCases
                     model.setFit(all[(all.firstIndex(of: model.fit)! + 1) % all.count])

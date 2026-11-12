@@ -47,6 +47,14 @@ struct Item: Decodable, Identifiable, Hashable {
     var status: String?
     var userData: UserData?
     var aiostreams: ItemExtension?
+    // Live TV: a channel's number and what's on it now; a programme's channel and times.
+    var channelNumber: String?
+    var channelId: String?
+    var channelName: String?
+    var startDate: String?
+    var endDate: String?
+    var episodeTitle: String?
+    var currentProgram: Programme?
 
     /// An image tag by Jellyfin's type name. The decoder's key strategy also lowers the first
     /// letter of dictionary keys, so `ImageTags.Primary` arrives as `primary`.
@@ -57,6 +65,10 @@ struct Item: Decodable, Identifiable, Hashable {
     var isEpisode: Bool { type == "Episode" }
     var isSeries: Bool { type == "Series" }
     var isFolder: Bool { type == "CollectionFolder" || type == "BoxSet" || type == "Folder" }
+    var isChannel: Bool { type == "TvChannel" }
+
+    var starts: Date? { parseDate(startDate) }
+    var ends: Date? { parseDate(endDate) }
 
     /// Where playback picks up. A title watched before and started again resumes too, as the web app
     /// reads the position whatever the watched mark says.
@@ -82,7 +94,7 @@ struct Item: Decodable, Identifiable, Hashable {
     }
 
     /// Jellyfin can't play a virtual item, such as an episode not yet aired.
-    var playable: Bool { isSeries || ((type == "Movie" || isEpisode) && locationType != "Virtual") }
+    var playable: Bool { isSeries || isChannel || ((type == "Movie" || isEpisode) && locationType != "Virtual") }
 
     /// "1h 12m left", from where playback stopped.
     var timeLeft: String? {
@@ -96,6 +108,24 @@ struct Item: Decodable, Identifiable, Hashable {
         guard let minutes = runtimeMinutes else { return nil }
         return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
     }
+}
+
+/// What a channel shows now, as the channel list sends it along (`AddCurrentProgram`).
+struct Programme: Decodable, Hashable {
+    var id: String
+    var name: String?
+    var episodeTitle: String?
+    var startDate: String?
+    var endDate: String?
+
+    var starts: Date? { parseDate(startDate) }
+    var ends: Date? { parseDate(endDate) }
+}
+
+/// How far through its slot a programme is, from 0 to 1.
+func airedShare(from start: Date?, to end: Date?, now: Date) -> Double {
+    guard let start, let end, end > start else { return 0 }
+    return min(1, max(0, now.timeIntervalSince(start) / end.timeIntervalSince(start)))
 }
 
 struct Person: Decodable, Hashable, Identifiable {
@@ -138,6 +168,8 @@ struct MediaSource: Decodable, Identifiable, Hashable {
     var size: Int64?
     var container: String?
     var requiredHttpHeaders: [String: String]?
+    /// A live source, with no end and no seeking.
+    var isInfiniteStream: Bool?
     var mediaStreams: [MediaStream]?
     var aiostreams: SourceExtension?
 

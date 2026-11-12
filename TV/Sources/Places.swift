@@ -20,7 +20,8 @@ private let isoParser: ISO8601DateFormatter = {
 
 private let isoPlain = ISO8601DateFormatter()
 
-private func parseDate(_ text: String?) -> Date? {
+/// A Jellyfin date, which can carry more fractional digits than the parser takes.
+func parseDate(_ text: String?) -> Date? {
     guard let text else { return nil }
     // Jellyfin gives seven fractional digits, more than the parser takes.
     if let date = isoParser.date(from: text) ?? isoPlain.date(from: text) { return date }

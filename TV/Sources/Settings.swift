@@ -120,6 +120,35 @@ final class Preferences: ObservableObject {
         didSet { UserDefaults.standard.set(preventAccidentalExit, forKey: "app.preventAccidentalExit") }
     }
 
+    /// Where the app opens, as the web app's start page setting: kept on this Apple TV.
+    @Published var startPage: String = UserDefaults.standard.string(forKey: "app.startPage") ?? "home" {
+        didSet { UserDefaults.standard.set(startPage, forKey: "app.startPage") }
+    }
+
+    /// `auto` follows the Apple TV; `12` or `24` as chosen. Synced, as the web app's `timeFormat`.
+    var timeFormat: String { text("timeFormat", "auto") }
+
+    /// A time of day in the chosen format.
+    func time(_ date: Date) -> String {
+        switch timeFormat {
+        case "12": return Self.twelve.string(from: date)
+        case "24": return Self.twentyFour.string(from: date)
+        default: return date.formatted(date: .omitted, time: .shortened)
+        }
+    }
+
+    private static let twelve: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+
+    private static let twentyFour: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
     /// The web app's subtitle style, in the overlay's units (lib/subtitles/style.ts).
     var subtitleLook: SubtitleLook {
         var look = SubtitleLook()
@@ -237,7 +266,16 @@ struct SettingsView: View {
                         }
                     }
                 }
-                section("Home", note: nil) {
+                section("Interface", note: nil) {
+                    row("Start page", value: Place(rawValue: prefs.startPage)?.name ?? "Home") {
+                        chooser = Chooser(
+                            title: "Start page",
+                            options: Place.startPages.map { ($0.name, $0.rawValue) },
+                            current: prefs.startPage
+                        ) { prefs.startPage = $0 }
+                    }
+                    synced("Time format", key: "timeFormat", fallback: "auto",
+                           options: [("Automatic", "auto"), ("12-hour", "12"), ("24-hour", "24")])
                     row("Prevent accidental exit", value: prefs.preventAccidentalExit ? "On" : "Off") {
                         prefs.preventAccidentalExit.toggle()
                     }
