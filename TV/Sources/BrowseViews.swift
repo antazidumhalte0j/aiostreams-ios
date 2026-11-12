@@ -291,10 +291,18 @@ private struct RefreshOnReturn: ViewModifier {
 struct PosterGrid: View {
     let items: [Item]
     var onLast: (() -> Void)? = nil
+    /// As many columns as fit, rather than six, for a page that may be narrower than the screen.
+    var fitting = false
+
+    private var columns: [GridItem] {
+        let size = Theme.px(168)
+        if fitting { return [GridItem(.adaptive(minimum: size, maximum: size), spacing: Theme.px(16))] }
+        return Array(repeating: GridItem(.fixed(size), spacing: Theme.px(16)), count: 6)
+    }
 
     var body: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.fixed(Theme.px(168)), spacing: Theme.px(16)), count: 6),
+            columns: columns,
             alignment: .leading,
             spacing: Theme.px(28)
         ) {
@@ -439,37 +447,54 @@ struct SearchView: View {
     @State private var term = ""
     @State private var results: [Item] = []
     @State private var searching = false
+    /// How far in from the left the search keeps its content, which the grid keyboard makes wide.
+    @State private var leadingInset: CGFloat = 0
+
+    /// The grid keyboard, down the left side, rather than the full one across the top.
+    private var sideKeyboard: Bool { leadingInset > Theme.px(200) }
 
     var body: some View {
+        ZStack {
+            // Measures the room the keyboard leaves, from a view that keeps to it.
+            Color.clear
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.leading } action: { leadingInset = $0 }
+            grid(in: sideKeyboard ? .trailing : .horizontal)
+        }
+        .searchable(text: $term, prompt: "Movies and shows")
+        .task(id: term) { await search() }
+    }
+
+    private func grid(in edges: Edge.Set) -> some View {
         ScrollView {
-            PosterGrid(items: results)
+            PosterGrid(items: results, fitting: true)
             if searching { ProgressView() }
             if !searching && term.count >= 2 && results.isEmpty {
                 Text("No results for “\(term)”.").font(Theme.font(Theme.base)).foregroundStyle(Theme.gray400)
             }
         }
-        // Edge to edge across, but under the search bar and keyboard, which take the top of the
-        // screen: ignoring that inset or drawing past the scroll view put results behind them.
-        .ignoresSafeArea(edges: .horizontal)
-        .searchable(text: $term, prompt: "Movies and shows")
-        .task(id: term) {
-            guard term.count >= 2 else {
-                results = []
-                return
-            }
-            // Waits for typing to pause.
-            try? await Task.sleep(for: .milliseconds(500))
-            guard !Task.isCancelled, let client = session.client, let userId = session.userId else { return }
-            searching = true
-            defer { searching = false }
-            let result: ItemsResult? = try? await client.get("/Items", [
-                "userId": userId,
-                "SearchTerm": term,
-                "Recursive": "true",
-                "IncludeItemTypes": "Movie,Series",
-                "Limit": "48",
-            ])
-            if !Task.isCancelled { results = result?.items ?? [] }
+        // Edge to edge across, but under the full keyboard, which takes the top of the screen:
+        // ignoring that inset or drawing past the scroll view put results behind it. The grid
+        // keyboard takes the left instead, so then only the right is ignored.
+        .ignoresSafeArea(edges: edges)
+    }
+
+    private func search() async {
+        guard term.count >= 2 else {
+            results = []
+            return
         }
+        // Waits for typing to pause.
+        try? await Task.sleep(for: .milliseconds(500))
+        guard !Task.isCancelled, let client = session.client, let userId = session.userId else { return }
+        searching = true
+        defer { searching = false }
+        let result: ItemsResult? = try? await client.get("/Items", [
+            "userId": userId,
+            "SearchTerm": term,
+            "Recursive": "true",
+            "IncludeItemTypes": "Movie,Series",
+            "Limit": "48",
+        ])
+        if !Task.isCancelled { results = result?.items ?? [] }
     }
 }
