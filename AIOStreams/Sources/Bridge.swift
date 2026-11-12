@@ -50,6 +50,11 @@ final class Bridge: NSObject {
         JSON.encode(["v": value]).map { String($0.dropFirst(5).dropLast(1)) } ?? "\"\""
     }
 
+    /// Whether the system shows times on a 24-hour clock, which the page's time format follows on Auto.
+    private static var uses24HourClock: Bool {
+        !(DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .current) ?? "").contains("a")
+    }
+
     private static func script() -> String {
         """
         (() => {
@@ -74,6 +79,7 @@ final class Bridge: NSObject {
             version: \(literal(AppInfo.version)),
             platform: 'ios',
             miniPlayer: false,
+            hours24: \(Self.uses24HourClock ? "true" : "false"),
             device: \(literal(AppInfo.deviceName)),
             deviceId: \(literal(AppInfo.deviceId)),
             send,

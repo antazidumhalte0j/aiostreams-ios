@@ -1,20 +1,25 @@
-diff --git a/packages/web/src/lib/client.ts b/packages/web/src/lib/client.ts
-index ee89b85..6eefa60 100644
---- a/packages/web/src/lib/client.ts
-+++ b/packages/web/src/lib/client.ts
-@@ -28,6 +28,7 @@ function clientName(): string {
-     if (host === 'tizen') return 'AIOStreams Tizen';
-     return 'AIOStreams Web';
-   }
-+  if (shell.platform === 'ios') return 'AIOStreams iOS';
-   if (shell.platform !== 'android') return 'AIOStreams Desktop';
-   return shell.tv ? 'AIOStreams Android TV' : 'AIOStreams Android';
- }
+diff --git a/packages/web/src/app/settings/about.tsx b/packages/web/src/app/settings/about.tsx
+index e41938f9..d8ffaba2 100644
+--- a/packages/web/src/app/settings/about.tsx
++++ b/packages/web/src/app/settings/about.tsx
+@@ -59,7 +59,11 @@ export function AboutSection() {
+     ...(shell
+       ? ([
+           [
+-            shell.platform === 'android' ? t`Android app` : t`Desktop app`,
++            shell.platform === 'android'
++              ? t`Android app`
++              : shell.platform === 'ios'
++                ? t`iOS app`
++                : t`Desktop app`,
+             shell.app,
+           ],
+           ...(shell.player && !shell.mpv
 diff --git a/packages/web/src/lib/hosts/shell/bridge.ts b/packages/web/src/lib/hosts/shell/bridge.ts
-index 7902c52..d11e424 100644
+index 39f60cb8..f18c1eb0 100644
 --- a/packages/web/src/lib/hosts/shell/bridge.ts
 +++ b/packages/web/src/lib/hosts/shell/bridge.ts
-@@ -182,7 +182,7 @@ export type MediaKey =
+@@ -188,7 +188,7 @@ export type MediaKey =
  interface ShellBridge {
    protocol: number;
    version: string;
@@ -24,7 +29,7 @@ index 7902c52..d11e424 100644
    /** The Android app on a TV. */
    tv?: boolean;
 diff --git a/packages/web/src/lib/hosts/shell/index.ts b/packages/web/src/lib/hosts/shell/index.ts
-index 7b11291..16e92c8 100644
+index 0c2fe1b2..6de9d177 100644
 --- a/packages/web/src/lib/hosts/shell/index.ts
 +++ b/packages/web/src/lib/hosts/shell/index.ts
 @@ -10,6 +10,7 @@ import type { Host } from '..';
@@ -33,11 +38,11 @@ index 7b11291..16e92c8 100644
  import { desktopHost, setupDesktop } from './desktop';
 +import { iosHost, setupIos } from './ios';
  import { playerSettings } from './player';
+ import { onUpscalingChange } from '@/lib/playback/upscaling';
  
- export type UpdateState = ShellAnswer<'update-state'>;
-@@ -83,7 +84,11 @@ export function ShellSetup() {
-     checkForUpdates(channel);
+@@ -85,7 +86,11 @@ export function ShellSetup() {
      const unsubscribeSettings = onSettingsChange(apply);
+     const unsubscribeUpscaling = onUpscalingChange(apply);
      const teardown =
 -      shell.platform === 'android' ? setupAndroid() : setupDesktop();
 +      shell.platform === 'android'
@@ -48,7 +53,7 @@ index 7b11291..16e92c8 100644
      shell.send({ type: 'player-sync' });
      return () => {
        unsubscribeSettings();
-@@ -179,5 +184,6 @@ export function crashReportSeen(at: number): void {
+@@ -182,5 +187,6 @@ export function crashReportSeen(at: number): void {
  export function shellHost(): Host | null {
    const bridge = appBridge();
    if (bridge?.protocol !== 2) return null;
@@ -58,7 +63,7 @@ index 7b11291..16e92c8 100644
  }
 diff --git a/packages/web/src/lib/hosts/shell/ios.ts b/packages/web/src/lib/hosts/shell/ios.ts
 new file mode 100644
-index 0000000..5013939
+index 00000000..50139397
 --- /dev/null
 +++ b/packages/web/src/lib/hosts/shell/ios.ts
 @@ -0,0 +1,29 @@
@@ -91,20 +96,15 @@ index 0000000..5013939
 +  saveFile: (name, type, text) =>
 +    appBridge()?.send({ type: 'save-file', name, mime: type, text }),
 +};
-diff --git a/packages/web/src/pages/settings/about.tsx b/packages/web/src/pages/settings/about.tsx
-index a8883d5..94131c7 100644
---- a/packages/web/src/pages/settings/about.tsx
-+++ b/packages/web/src/pages/settings/about.tsx
-@@ -55,7 +55,11 @@ export function AboutSection() {
-     ...(shell
-       ? ([
-           [
--            shell.platform === 'android' ? t`Android app` : t`Desktop app`,
-+            shell.platform === 'android'
-+              ? t`Android app`
-+              : shell.platform === 'ios'
-+                ? t`iOS app`
-+                : t`Desktop app`,
-             shell.app,
-           ],
-           ...(shell.player && !shell.mpv
+diff --git a/packages/web/src/lib/jellyfin/client.ts b/packages/web/src/lib/jellyfin/client.ts
+index 03c7dded..030e75e5 100644
+--- a/packages/web/src/lib/jellyfin/client.ts
++++ b/packages/web/src/lib/jellyfin/client.ts
+@@ -28,6 +28,7 @@ function clientName(): string {
+     if (host === 'tizen') return 'AIOStreams Tizen';
+     return 'AIOStreams Web';
+   }
++  if (shell.platform === 'ios') return 'AIOStreams iOS';
+   if (shell.platform !== 'android') return 'AIOStreams Desktop';
+   return shell.tv ? 'AIOStreams Android TV' : 'AIOStreams Android';
+ }
