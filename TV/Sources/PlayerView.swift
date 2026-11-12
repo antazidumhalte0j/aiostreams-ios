@@ -230,6 +230,30 @@ final class PlayerModel: ObservableObject {
         scrubSpeed = 0
     }
 
+    // MARK: Swiping while paused
+
+    private var swipeFrom: Double?
+
+    /// A swipe across the remote while paused: the whole surface is a quarter of the video,
+    /// and never less than two minutes, so a few quick swipes cross any of it.
+    func startSwipe() {
+        swipeFrom = scrubTarget ?? position
+        scrubTarget = swipeFrom
+    }
+
+    func swipe(_ share: Double) {
+        guard let swipeFrom else { return }
+        let span = max(duration / 4, 120)
+        scrubTarget = min(max(swipeFrom + share * span, 0), max(duration - 1, 0))
+    }
+
+    /// Lifting the finger seeks there once; playback stays paused.
+    func endSwipe() {
+        swipeFrom = nil
+        if let target = scrubTarget { seek(to: target) }
+        scrubTarget = nil
+    }
+
     func seek(to seconds: Double) {
         let target = min(max(seconds, 0), max(duration - 1, 0))
         position = target

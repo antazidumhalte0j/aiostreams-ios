@@ -92,11 +92,11 @@ tvOS has no WebKit, so the web app can't run there. The Apple TV app (`TV/`) is 
 - **Connecting:** enter the server address from the configure page (Save & Install → Jellyfin apps → Connect). Sign in with Quick Connect (approve the code on the configure page), by picking a user, or with a name and password.
 - **Browsing:** Home has Continue Watching, Next Up and a row for each library. There's also search, library grids, and details pages with seasons and episodes.
 - **Versions:** the streams your addons found, in the order the server sorted them. Picking one also fetches its subtitles from your subtitle addons.
-- **Player:** play/pause, click left or right to go back 10 s or forward 30 s, and press down for audio and subtitles. Playback resumes where you left off and reports progress to the server.
+- **Player:** play/pause, click left or right to skip 10 s, hold them to fast forward or rewind (faster the longer you hold), and press down for audio and subtitles. While paused, with the bar selected, swipe across the remote to move along it. Playback resumes where you left off and reports progress to the server.
 
 It shares `Support.swift` and `SubtitleOverlayView.swift` with the iOS app. The build makes `AIOStreams-tvOS.ipa` alongside the iPhone one. AltStore and SideStore don't install on Apple TV. Use Xcode with a paired Apple TV, or another signing tool that supports tvOS.
 
-Not in the Apple TV app yet: scrubbing with the touch surface, playing the next episode automatically, skipping intros, Live TV, and a subtitle style setting.
+Not in the Apple TV app yet: playing the next episode automatically, skipping intros, Live TV, and a subtitle style setting.
 
 ## Not done yet
 

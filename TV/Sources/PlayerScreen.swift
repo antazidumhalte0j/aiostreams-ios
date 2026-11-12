@@ -72,6 +72,9 @@ private struct PlayerChrome: View {
     /// The last few left or right moves, which come quickly over and over while a direction is held.
     @State private var lastMove: (direction: Int, at: Date, count: Int)?
     @State private var moveHoldEnd: Task<Void, Never>?
+    /// A swipe along the bar in progress, or just finished.
+    @State private var swiping = false
+    @State private var swipeSettled: Task<Void, Never>?
 
     private var canScrub: Bool {
         panel == nil && model.failure == nil && (!shown || focus == .bar || focus == .surface)
@@ -80,7 +83,7 @@ private struct PlayerChrome: View {
     /// A move left or right, which reads as a hold once it repeats quickly, for remotes and
     /// directions that repeat their move while held. Returns whether it went to a scrub.
     private func moved(_ direction: Int) -> Bool {
-        if pressHeld { return true }
+        if pressHeld || swiping { return true }
         let now = Date()
         var count = 1
         if let last = lastMove, last.direction == direction, now.timeIntervalSince(last.at) < 0.4 {
@@ -117,6 +120,29 @@ private struct PlayerChrome: View {
                 end: {
                     pressHeld = false
                     model.endScrub()
+                    wake()
+                }
+            )
+            .frame(width: 0, height: 0)
+
+            // Swiping across the remote while paused, with the bar focused, slides along it.
+            SwipeScrub(
+                begin: {
+                    guard model.paused, shown, focus == .bar, panel == nil, model.failure == nil,
+                          !model.scrubbing else { return false }
+                    swiping = true
+                    swipeSettled?.cancel()
+                    model.startSwipe()
+                    return true
+                },
+                change: { model.swipe($0) },
+                end: {
+                    model.endSwipe()
+                    // The focus engine's own moves from the swipe can trail it; those aren't skips.
+                    swipeSettled = Task {
+                        try? await Task.sleep(for: .milliseconds(300))
+                        if !Task.isCancelled { swiping = false }
+                    }
                     wake()
                 }
             )
@@ -213,7 +239,7 @@ private struct PlayerChrome: View {
                     switch direction {
                     case .left: if !moved(-1) { model.skip(-10) }
                     case .right: if !moved(1) { model.skip(10) }
-                    case .down: focus = .play
+                    case .down: if !swiping { focus = .play }
                     default: break
                     }
                     wake()
