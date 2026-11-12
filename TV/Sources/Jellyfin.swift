@@ -55,6 +55,7 @@ struct Item: Decodable, Identifiable, Hashable {
     var endDate: String?
     var episodeTitle: String?
     var currentProgram: Programme?
+    var providerIds: [String: String]?
 
     /// An image tag by Jellyfin's type name. The decoder's key strategy also lowers the first
     /// letter of dictionary keys, so `ImageTags.Primary` arrives as `primary`.
@@ -66,6 +67,13 @@ struct Item: Decodable, Identifiable, Hashable {
     var isSeries: Bool { type == "Series" }
     var isFolder: Bool { type == "CollectionFolder" || type == "BoxSet" || type == "Folder" }
     var isChannel: Bool { type == "TvChannel" }
+
+    /// An anime database's id marks anime, as the web app tells (lib/playback/upscaling.ts). The
+    /// decoder lowers the first letter of these keys, so they're matched without case.
+    var hasAnimeIds: Bool {
+        let keys = Set((providerIds ?? [:]).filter { !$0.value.isEmpty }.keys.map { $0.lowercased() })
+        return !keys.isDisjoint(with: ["anilist", "kitsu", "myanimelist", "anidb"])
+    }
 
     var starts: Date? { parseDate(startDate) }
     var ends: Date? { parseDate(endDate) }

@@ -87,7 +87,7 @@ index 00000000..50139397
 +  name: 'ios-app',
 +  device: () => ({ id: appBridge()?.deviceId, name: appBridge()?.device }),
 +  player: appEngine,
-+  playerFeatures: ['audio', 'chapters', 'headers'],
++  playerFeatures: ['audio', 'chapters', 'headers', 'upscaling'],
 +  resolveYouTube,
 +  fullscreen: {
 +    active: () => fullscreen,

@@ -120,6 +120,12 @@ final class Preferences: ObservableObject {
         didSet { UserDefaults.standard.set(preventAccidentalExit, forKey: "app.preventAccidentalExit") }
     }
 
+    /// Anime upscaling: anime plays through AetherEngine's line-art scaler. Kept on this Apple TV, as
+    /// the web app keeps its own (`aiostreams-web-video-upscaling`).
+    @Published var animeUpscaling: Bool = UserDefaults.standard.bool(forKey: "video.animeUpscaling") {
+        didSet { UserDefaults.standard.set(animeUpscaling, forKey: "video.animeUpscaling") }
+    }
+
     /// Where the app opens, as the web app's start page setting: kept on this Apple TV.
     @Published var startPage: String = UserDefaults.standard.string(forKey: "app.startPage") ?? "home" {
         didSet { UserDefaults.standard.set(startPage, forKey: "app.startPage") }
@@ -229,6 +235,15 @@ struct SettingsView: View {
                         ) { prefs.configure(["SubtitleMode": $0]) }
                     }
                 }
+                section("Video", note: nil) {
+                    row("Anime upscaling", value: prefs.animeUpscaling ? "On" : "Off") {
+                        prefs.animeUpscaling.toggle()
+                    }
+                    Text("Anime up to 1080p is upscaled for your TV with Anime4K's line-art network, for sharper lines. Applies to titles with an anime database id, and only to SDR video. Changes take effect from the next title.")
+                        .font(Theme.font(Theme.sm))
+                        .foregroundStyle(Theme.gray400)
+                        .padding(.horizontal, Theme.px(16))
+                }
                 section("Subtitle style", note: "The same style as the web app's, on every device you sign in to.") {
                     synced("Size", key: "subtitleSize", fallback: "normal",
                            options: [("Small", "small"), ("Normal", "normal"), ("Large", "large"), ("Huge", "huge")])
@@ -300,7 +315,7 @@ struct SettingsView: View {
                 section("About", note: nil) {
                     fact("App", "AIOStreams tvOS \(AppInfo.version)")
                     fact("Player", AppInfo.player)
-                    Text("An unofficial app, not affiliated with AIOStreams or AetherEngine. AGPL-3.0; AetherEngine is LGPL-3.0, FFmpeg LGPL-2.1+, and the Inter font is under the SIL Open Font License.")
+                    Text("An unofficial app, not affiliated with AIOStreams or AetherEngine. AGPL-3.0; AetherEngine is LGPL-3.0, FFmpeg LGPL-2.1+, libdovi and Anime4K (Copyright (c) 2019-2021 bloc97) MIT, and the Inter font is under the SIL Open Font License.")
                         .font(Theme.font(Theme.sm))
                         .foregroundStyle(Theme.gray400)
                 }

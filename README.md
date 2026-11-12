@@ -91,6 +91,7 @@ tvOS has no WebKit, so the web app can't run there. The Apple TV app (`TV/`) is 
 
 - **Connecting:** enter the server address from the configure page (Save & Install → Jellyfin apps → Connect). Sign in with Quick Connect (approve the code on the configure page), by picking a user, or with a name and password.
 - **Browsing:** Home has Continue Watching, Next Up and a row for each library. There's also search, library grids, and details pages with seasons and episodes.
+- **Anime upscaling:** with Settings → Video → Anime upscaling on, anime up to 1080p plays through AetherEngine's line-art scaler (Anime4K). A title counts as anime when it, its season or its show has an AniList, Kitsu, MyAnimeList or AniDB id, as in the web app. On iPhone and iPad, the web app's own Anime upscaling setting drives the same scaler.
 - **Live TV:** on a server with channels, Live TV appears in the sidebar. Browse channels by group (Favourites, Recent, All channels and the server's genres) as a list of what's on now and next, or as a guide of the coming six hours. Channels play live, with no seeking.
 - **Versions:** the streams your addons found, in the order the server sorted them. Picking one also fetches its subtitles from your subtitle addons.
 - **Player:** play/pause, click left or right to skip 10 s, hold them to fast forward or rewind (faster the longer you hold), and press down for audio and subtitles. While paused, with the bar selected, swipe across the remote to move along it. Playback resumes where you left off and reports progress to the server.
@@ -135,6 +136,6 @@ AetherEngine notes that these components may be subject to third-party patent li
 
 ## Licence
 
-AGPL-3.0, like AIOStreams (`LICENSE`). AetherEngine is LGPL-3.0 with an App Store exception, and is linked statically from its tagged release. FFmpeg is LGPL-2.1+ and is embedded as dynamic frameworks. The app's licences screen lists both.
+AGPL-3.0, like AIOStreams (`LICENSE`). AetherEngine is LGPL-3.0 with an App Store exception, and is linked statically from its tagged release. FFmpeg is LGPL-2.1+ and is embedded as dynamic frameworks. The engine also compiles in libdovi and Anime4K's line-art kernels, both MIT. The apps' licence screens list them all.
 
 This is an unofficial port, not affiliated with AIOStreams or AetherEngine.

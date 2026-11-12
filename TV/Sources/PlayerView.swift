@@ -64,15 +64,20 @@ final class PlayerModel: ObservableObject {
     private let audioLanguages: [String]
     private let subtitleLanguages: [String]
     private let speakers: SpatialSpeakerLayout?
+    private let animeUpscaling: Bool
+    private let userId: String?
 
     init(request: PlayRequest, client: JellyfinClient, audioLanguages: [String] = [], subtitleLanguages: [String] = [],
-         look: SubtitleLook = SubtitleLook(), speakers: SpatialSpeakerLayout? = .l714) {
+         look: SubtitleLook = SubtitleLook(), speakers: SpatialSpeakerLayout? = .l714, animeUpscaling: Bool = false,
+         userId: String? = nil) {
         self.request = request
         isLive = request.source.isInfiniteStream == true || request.item.isChannel
         self.client = client
         self.audioLanguages = audioLanguages
         self.subtitleLanguages = subtitleLanguages
         self.speakers = speakers
+        self.animeUpscaling = animeUpscaling
+        self.userId = userId
         engine = SharedEngine.engine
         overlay = SubtitleOverlayView()
         overlay.look = look
@@ -147,9 +152,16 @@ final class PlayerModel: ObservableObject {
         AppLog.info("player", "load \(request.item.id) source=\(request.source.ownId) host=\(url.host ?? "?")")
         loadTask = Task { [weak self] in
             guard let self else { return }
+            var loadOptions = options
             do {
+                // Anime upscaling, decided before the load so the first frame is already upscaled.
+                if self.animeUpscaling, await self.isAnime() {
+                    loadOptions.upscalesLowResolutionVideo = true
+                    loadOptions.upscaleScaler = .lineArt
+                    AppLog.info("player", "anime upscaling on")
+                }
                 let start = self.isLive ? nil : self.request.startMs.map { $0 / 1000 }
-                try await self.engine.load(url: url, startPosition: start, options: options)
+                try await self.engine.load(url: url, startPosition: start, options: loadOptions)
                 self.engine.play()
                 self.report("/Sessions/Playing")
                 self.progressTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
@@ -161,6 +173,18 @@ final class PlayerModel: ObservableObject {
                 self.failure = error.localizedDescription
             }
         }
+    }
+
+    /// Anime by the web app's test: an anime database id on the title, its season or its show. A
+    /// season can carry them from the server's anime database when its show has none.
+    private func isAnime() async -> Bool {
+        guard !isLive, let userId else { return false }
+        let item = request.item
+        let ids = [item.id, item.seasonId, item.seriesId].compactMap { $0 }
+        let result: ItemsResult? = try? await client.get("/Items", [
+            "userId": userId, "Ids": ids.joined(separator: ","), "Fields": "ProviderIds",
+        ])
+        return (result?.items ?? []).contains(where: \.hasAnimeIds)
     }
 
     /// The configuration's subtitle addons' files, registered as tracks the user can pick.

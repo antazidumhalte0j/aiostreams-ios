@@ -11,7 +11,7 @@ settings:
     MARKETING_VERSION: "0.2.0"
     CURRENT_PROJECT_VERSION: "1"
 packages:
-  # AetherEngine 7.62.1 with TrueHD Atmos and DTS:X heights and Dolby Vision FEL turned on.
+  # AetherEngine 7.64.0 with TrueHD Atmos and DTS:X heights and Dolby Vision FEL turned on.
   AetherEngineFeatures:
     path: Packages/AetherEngineFeatures
 targets:

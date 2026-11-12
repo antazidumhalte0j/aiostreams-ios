@@ -115,25 +115,27 @@ enum AppInfo {
     static var licenses: [String: Any] {
         let lgpl = "GNU Lesser General Public License v3.0, with the AetherEngine App Store / DRM exception. https://github.com/superuser404notfound/AetherEngine/blob/\(AetherEngine.version)/LICENSE"
         let ffmpeg = "GNU Lesser General Public License v2.1 or later. Built by FFmpegBuild, whose LICENSES folder lists every component: https://github.com/superuser404notfound/FFmpegBuild/tree/main/LICENSES"
-        let mit = """
+        let mit = { (holder: String) in """
         MIT License
 
-        Copyright (c) quietvoid and contributors
+        Copyright (c) \(holder)
 
         Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
         The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
         THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-        """
+        """ }
         return [
             "type": "licenses",
-            "texts": [lgpl, ffmpeg, mit],
+            "texts": [lgpl, ffmpeg, mit("quietvoid and contributors"), mit("2019-2021 bloc97\nAll rights reserved.")],
             "libraries": [
                 ["name": "AetherEngine", "version": AetherEngine.version, "licence": "LGPL-3.0-only",
                  "url": "https://github.com/superuser404notfound/AetherEngine", "texts": [0]],
                 ["name": "FFmpeg", "licence": "LGPL-2.1-or-later", "url": "https://ffmpeg.org", "texts": [1]],
                 ["name": "libdovi", "licence": "MIT", "url": "https://github.com/quietvoid/dovi_tool", "texts": [2]],
+                // The line-art scaler's kernels, compiled into the engine whether or not it runs.
+                ["name": "Anime4K", "licence": "MIT", "url": "https://github.com/bloc97/Anime4K", "texts": [3]],
             ],
         ]
     }

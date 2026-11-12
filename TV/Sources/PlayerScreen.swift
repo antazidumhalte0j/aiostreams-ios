@@ -30,7 +30,9 @@ struct PlayerScreen: View {
                 audioLanguages: prefs.audioLanguages,
                 subtitleLanguages: prefs.subtitleLanguages,
                 look: prefs.subtitleLook,
-                speakers: prefs.speakers
+                speakers: prefs.speakers,
+                animeUpscaling: prefs.animeUpscaling,
+                userId: session.userId
             )
             model = player
             player.start()

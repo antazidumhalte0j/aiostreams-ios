@@ -248,6 +248,7 @@ final class PlayerChannel {
             break
         case "player-settings":
             if let delay = JSON.number(message["audioDelayMs"]) { engine.setAudioDelay(delay / 1000) }
+            if let on = JSON.flag(message["upscaling"]) { setUpscaling(on) }
         case "now-playing":
             nowPlaying.setItem(message["item"] as? [String: Any])
         default:
@@ -277,6 +278,9 @@ final class PlayerChannel {
         options.preferredAudioLanguages = JSON.strings(message["audioLanguages"])
         // TrueHD Atmos and DTS:X with their heights, which iOS plays as Spatial Audio (OS 26 and later).
         options.objectAudioRendering = .render(.l714)
+        // Anime upscaling: the page asks for it on a title it knows is anime, with its setting on.
+        options.upscalesLowResolutionVideo = upscaling
+        options.upscaleScaler = .lineArt
         // Forced-only and none leave full subtitles off; the page picks forced ones itself.
         if mode == "default" || mode == "always" || mode == "smart" {
             options.preferredSubtitleLanguages = JSON.strings(message["subtitleLanguages"])
@@ -286,6 +290,7 @@ final class PlayerChannel {
         let current = generation
         loadTask?.cancel()
         loadedURL = text
+        playingUpscaled = nil
         ended = false
         restarted = false
         lastStatus = nil
@@ -304,6 +309,8 @@ final class PlayerChannel {
                 guard current == self.generation else { return }
                 self.applyTransport()
                 self.event("loaded")
+                self.playingUpscaled = options.upscalesLowResolutionVideo
+                self.applyUpscaling()
                 if self.wantsPaused { self.engine.pause() } else { self.engine.play() }
             } catch is CancellationError {
                 // A newer load took its place.
@@ -314,7 +321,34 @@ final class PlayerChannel {
         }
     }
 
+    /// Whether the line-art scaler runs, as the page's player settings last said. A change while a
+    /// title plays rebuilds it where it is, which the engine does without starting it over.
+    private var upscaling = false
+    /// What the title playing was loaded or last rebuilt with; nil until a load finishes.
+    private var playingUpscaled: Bool?
+
+    private func setUpscaling(_ on: Bool) {
+        upscaling = on
+        applyUpscaling()
+    }
+
+    /// Brings the title playing in line with the setting. One still loading catches up once it has.
+    private func applyUpscaling() {
+        guard let current = playingUpscaled, current != upscaling else { return }
+        let on = upscaling
+        playingUpscaled = on
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.engine.reloadAtCurrentPosition { $0.upscalesLowResolutionVideo = on; $0.upscaleScaler = .lineArt }
+            } catch {
+                AppLog.warn("player", "upscaling not changed: \(error)")
+            }
+        }
+    }
+
     private func stop() {
+        playingUpscaled = nil
         generation += 1
         loadTask?.cancel()
         loadTask = nil
