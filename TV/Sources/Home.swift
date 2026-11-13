@@ -33,6 +33,9 @@ struct HomeView: View {
     @State private var hero: [Item] = []
     @State private var resume: [Item] = []
     @State private var nextUp: [Item] = []
+    /// Episodes of shows you follow airing soon (Jellyfin's Shows/Upcoming), as the web app's row.
+    @State private var upcoming: [Item] = []
+    @Environment(\.openRoute) private var openRoute
     @State private var libraries: [HomeRow] = []
     @State private var loading = true
     @State private var error: String?
@@ -57,6 +60,10 @@ struct HomeView: View {
                 }
                 if !merging && !nextUp.isEmpty {
                     WideRow(title: "Next up", items: nextUp, play: play) { EmptyView() }
+                }
+                if !upcoming.isEmpty {
+                    // Nothing to play yet, so a card opens its show.
+                    WideRow(title: "Upcoming", items: upcoming, upcoming: true, play: openShow) { EmptyView() }
                 }
                 ForEach(libraries) { row in
                     ItemRow(row: row)
@@ -85,6 +92,15 @@ struct HomeView: View {
         .playFlow($choice) { Task { await load() } }
     }
 
+    /// An upcoming episode's show, or the title itself.
+    private func openShow(_ item: Item) {
+        if let series = item.seriesId {
+            openRoute(.item(Item(id: series, name: item.seriesName, type: "Series")))
+        } else {
+            openRoute(.item(item))
+        }
+    }
+
     private func play(_ item: Item) {
         Task { choice = await playChoice(for: item, session: session) }
     }
@@ -97,9 +113,11 @@ struct HomeView: View {
         do {
             async let resumeResult: ItemsResult = client.get("/UserItems/Resume", ["userId": userId, "Limit": "24", "MediaTypes": "Video"])
             async let nextResult: ItemsResult = client.get("/Shows/NextUp", ["userId": userId, "Limit": "24", "EnableResumable": "false"])
+            async let upcomingResult: ItemsResult = client.get("/Shows/Upcoming", ["userId": userId, "Limit": "24"])
             async let viewsResult: ItemsResult = client.get("/UserViews", ["userId": userId])
             resume = (try? await resumeResult.items) ?? []
             nextUp = (try? await nextResult.items) ?? []
+            upcoming = (try? await upcomingResult.items) ?? []
             let views = (try await viewsResult.items ?? []).filter(isBrowsable)
 
             // Each library's head, in the configuration's order, as each arrives.
@@ -379,6 +397,8 @@ struct HeroMeta: View {
 struct WideRow<Action: View>: View {
     let title: String
     let items: [Item]
+    /// Cards with the day each airs, and how long until then.
+    var upcoming = false
     let play: (Item) -> Void
     @ViewBuilder let action: () -> Action
 
@@ -394,7 +414,7 @@ struct WideRow<Action: View>: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: Theme.px(16)) {
                     ForEach(items) { item in
-                        WideCard(item: item) { play(item) }
+                        WideCard(item: item, upcoming: upcoming) { play(item) }
                     }
                 }
                 .pagePadding()
@@ -410,7 +430,11 @@ struct WideRow<Action: View>: View {
 struct WideCard: View {
     @EnvironmentObject private var session: Session
     let item: Item
+    /// Not out yet: the air day over the still, and how long until it beside the name.
+    var upcoming = false
     let action: () -> Void
+
+    private var airs: Date? { upcoming ? parseDate(item.premiereDate) : nil }
 
     static let size = CGSize(width: Theme.px(304), height: Theme.px(171))
 
@@ -420,6 +444,16 @@ struct WideCard: View {
                 ZStack(alignment: .bottom) {
                     RemoteImage(url: session.client?.still(item, height: Int(Self.size.height * 2)))
                         .frame(width: Self.size.width, height: Self.size.height)
+                        .overlay(alignment: .topLeading) {
+                            if let airs {
+                                Text(airs.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                    .font(Theme.font(Theme.xs, .semibold))
+                                    .padding(.horizontal, Theme.px(8))
+                                    .padding(.vertical, Theme.px(3))
+                                    .background(Capsule().fill(.black.opacity(0.75)))
+                                    .padding(Theme.px(8))
+                            }
+                        }
                     if let progress = item.userData?.playedPercentage, progress > 0, item.userData?.played != true {
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
@@ -441,8 +475,8 @@ struct WideCard: View {
                         .font(Theme.font(15, .semibold))
                         .lineLimit(1)
                     Spacer(minLength: Theme.px(8))
-                    if let left = item.timeLeft {
-                        Text(left).font(Theme.font(Theme.xs)).foregroundStyle(Theme.gray400)
+                    if let until = airs.map(untilLabel) ?? item.timeLeft {
+                        Text(until).font(Theme.font(Theme.xs)).foregroundStyle(Theme.gray400)
                     }
                 }
                 Text(item.isEpisode ? item.displayTitle : item.productionYear.map(String.init) ?? "")
@@ -453,5 +487,17 @@ struct WideCard: View {
             .padding(.horizontal, Theme.px(2))
             .frame(width: Self.size.width, alignment: .leading)
         }
+    }
+}
+
+/// How long until a date, as the web app's Upcoming row says it: today, tomorrow, in 5 days, in 3 weeks.
+func untilLabel(_ date: Date) -> String {
+    let calendar = Calendar.current
+    let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: Date()), to: calendar.startOfDay(for: date)).day ?? 0
+    switch days {
+    case ..<1: return "today"
+    case 1: return "tomorrow"
+    case ..<14: return "in \(days) days"
+    default: return "in \(Int((Double(days) / 7).rounded())) weeks"
     }
 }
