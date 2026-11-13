@@ -16,6 +16,17 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
 
+    /// Background downloads finished or need attention while the app was closed: the queue takes
+    /// their events and calls this when it has handled them.
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        guard identifier == DownloadQueue.sessionID else { return completionHandler() }
+        DownloadQueue.shared.backgroundCompletion = completionHandler
+    }
+
     func application(
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?

@@ -63,14 +63,15 @@ index 0c2fe1b2..6de9d177 100644
  }
 diff --git a/packages/web/src/lib/hosts/shell/ios.ts b/packages/web/src/lib/hosts/shell/ios.ts
 new file mode 100644
-index 00000000..50139397
+index 00000000..4f5fab89
 --- /dev/null
 +++ b/packages/web/src/lib/hosts/shell/ios.ts
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,32 @@
 +import type { Host } from '..';
 +import { appBridge } from './bridge';
 +import { appEngine } from './player';
 +import { resolveYouTube } from './youtube';
++import { shellDownloads } from './downloads';
 +
 +let fullscreen = false;
 +
@@ -89,6 +90,8 @@ index 00000000..50139397
 +  player: appEngine,
 +  playerFeatures: ['audio', 'chapters', 'headers', 'upscaling'],
 +  resolveYouTube,
++  // The app's queue, which keeps going in the background and while the page reloads.
++  downloads: shellDownloads,
 +  fullscreen: {
 +    active: () => fullscreen,
 +    set: (on) => appBridge()?.send({ type: 'fullscreen', value: on }),

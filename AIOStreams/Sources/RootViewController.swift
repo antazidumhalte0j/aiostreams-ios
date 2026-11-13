@@ -115,6 +115,7 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
             alert.addAction(UIAlertAction(title: "OK", style: .default))
             self.present(alert, animated: true)
         }
+        DownloadQueue.shared.send = { [weak self] message in self?.bridge.send(message) }
         bridge.onMessage = { [weak self] type, message in self?.handle(type, message) }
         webView.load(URLRequest(url: DemoMode.startURL ?? WebAssets.startURL))
     }
@@ -128,6 +129,7 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
 
     private func handle(_ type: String, _ message: [String: Any]) {
         if player.handle(type, message) { return }
+        if DownloadQueue.shared.handle(type, message) { return }
         switch type {
         case "app-info":
             bridge.send([
