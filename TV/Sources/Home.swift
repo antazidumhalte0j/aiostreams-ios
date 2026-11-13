@@ -7,8 +7,29 @@ import SwiftUI
 private let heroPerLibrary = 8
 private let heroMax = 10
 
+/// What's partway through, then the next episodes, one card a show, most recently watched first,
+/// as the web app merges them (lib/jellyfin/queries.ts `mergeRows`).
+func mergeRows(_ resume: [Item], _ nextUp: [Item]) -> [Item] {
+    var seen = Set<String>()
+    let kept = (resume + nextUp).filter { item in
+        let keys = [item.id, item.seriesId].compactMap { $0 }
+        guard !keys.contains(where: seen.contains) else { return false }
+        seen.formUnion(keys)
+        return true
+    }
+    let watched = { (item: Item) in parseDate(item.aiostreams?.showWatchedAt ?? item.userData?.lastPlayedDate) ?? .distantPast }
+    // Stable, so next episodes without a time stay after what's partway through.
+    return kept.enumerated()
+        .sorted { a, b in
+            let (x, y) = (watched(a.element), watched(b.element))
+            return x != y ? x > y : a.offset < b.offset
+        }
+        .map(\.element)
+}
+
 struct HomeView: View {
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
     @State private var hero: [Item] = []
     @State private var resume: [Item] = []
     @State private var nextUp: [Item] = []
@@ -27,11 +48,14 @@ struct HomeView: View {
                 } else {
                     Color.clear.frame(height: Theme.px(16))
                 }
-                if !resume.isEmpty {
+                // With "Merge continue watching and next up" on, one row holds both, as the web app's.
+                let merging = prefs.flag("mergeNextUp", false)
+                let continuing = merging ? mergeRows(resume, nextUp) : resume
+                if !continuing.isEmpty {
                     // Activity is in the rail, so the row needs no button of its own.
-                    WideRow(title: "Continue watching", items: resume, play: play) { EmptyView() }
+                    WideRow(title: "Continue watching", items: continuing, play: play) { EmptyView() }
                 }
-                if !nextUp.isEmpty {
+                if !merging && !nextUp.isEmpty {
                     WideRow(title: "Next up", items: nextUp, play: play) { EmptyView() }
                 }
                 ForEach(libraries) { row in

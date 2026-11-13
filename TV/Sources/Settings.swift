@@ -329,6 +329,7 @@ struct SettingsView: View {
                             current: prefs.startPage
                         ) { prefs.startPage = $0 }
                     }
+                    toggle("Merge continue watching and next up", key: "mergeNextUp", fallback: false)
                     synced("Time format", key: "timeFormat", fallback: "auto",
                            options: [("Automatic", "auto"), ("12-hour", "12"), ("24-hour", "24")])
                     row("Prevent accidental exit", value: prefs.preventAccidentalExit ? "On" : "Off") {

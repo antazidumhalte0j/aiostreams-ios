@@ -286,10 +286,11 @@ private struct PlayerChrome: View {
                         .transition(.opacity)
                     }
                 }
+                // Its own focus section, no bigger than what it shows.
+                .focusSection()
                 .padding(.trailing, Theme.px(40))
                 .padding(.bottom, shown ? Theme.px(150) : Theme.px(48))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .focusSection()
             }
         }
         .font(Theme.font(Theme.base))
@@ -401,18 +402,8 @@ private struct PlayerChrome: View {
                     wake()
                 }
                 .onTapGesture { model.togglePause(); wake() }
-            }
-            if model.scrubSpeed != 0 {
-                HStack(spacing: Theme.px(8)) {
-                    Image(systemName: model.scrubSpeed > 0 ? "forward.fill" : "backward.fill")
-                    Text("\(abs(model.scrubSpeed))×").monospacedDigit()
-                }
-                .font(Theme.font(Theme.base, .semibold))
-                .padding(.horizontal, Theme.px(14))
-                .padding(.vertical, Theme.px(6))
-                .background(Capsule().fill(.black.opacity(0.6)))
-                .frame(maxWidth: .infinity)
-                .transition(.opacity)
+                // Floats over the bar, so the controls stay where they are while it shows.
+                .overlay(alignment: .bottomLeading) { scrubPreview }
             }
             HStack(spacing: Theme.px(8)) {
                 Button { model.togglePause() } label: {
@@ -480,6 +471,51 @@ private struct PlayerChrome: View {
         .background(
             LinearGradient(colors: [.black.opacity(0.9), .black.opacity(0.5), .clear], startPoint: .bottom, endPoint: .top)
         )
+    }
+
+    private static let previewWidth = Theme.px(240)
+    private static let previewHeight = Theme.px(210)
+
+    /// While scrubbing: a frame from where it would land, its time, and the speed, over that point of
+    /// the bar. The frame comes in as the engine makes it; until then the time and speed show alone.
+    @ViewBuilder private var scrubPreview: some View {
+        if let target = model.scrubTarget {
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let at = model.duration > 0 ? CGFloat(min(max(target / model.duration, 0), 1)) * width : 0
+                let x = min(max(at - Self.previewWidth / 2, 0), max(width - Self.previewWidth, 0))
+                VStack(spacing: Theme.px(6)) {
+                    if let image = model.preview {
+                        Image(decorative: image, scale: 1)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: Self.previewWidth, height: Self.previewWidth * 9 / 16)
+                            .background(Color.black)
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.px(8), style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Theme.px(8), style: .continuous)
+                                .stroke(.white.opacity(0.6), lineWidth: Theme.px(1.5)))
+                    }
+                    HStack(spacing: Theme.px(8)) {
+                        Text(clock(target)).monospacedDigit()
+                        if model.scrubSpeed != 0 {
+                            HStack(spacing: Theme.px(4)) {
+                                Image(systemName: model.scrubSpeed > 0 ? "forward.fill" : "backward.fill")
+                                Text("\(abs(model.scrubSpeed))×").monospacedDigit()
+                            }
+                            .foregroundStyle(Theme.gray200)
+                        }
+                    }
+                    .font(Theme.font(Theme.base, .semibold))
+                    .padding(.horizontal, Theme.px(12))
+                    .padding(.vertical, Theme.px(5))
+                    .background(Capsule().fill(.black.opacity(0.7)))
+                }
+                .frame(width: Self.previewWidth, height: Self.previewHeight, alignment: .bottom)
+                .offset(x: x, y: -Self.previewHeight - Theme.px(8))
+            }
+            .allowsHitTesting(false)
+            .transition(.opacity)
+        }
     }
 
     private func failureCard(_ failure: String) -> some View {

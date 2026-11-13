@@ -9,10 +9,13 @@ struct UserData: Decodable, Hashable {
     var played: Bool?
     var isFavorite: Bool?
     var unplayedItemCount: Int?
+    var lastPlayedDate: String?
 }
 
 struct ItemExtension: Decodable, Hashable {
     var genreRequired: Bool?
+    /// When the show an episode belongs to was last watched, which the server adds to Next up.
+    var showWatchedAt: String?
 }
 
 struct Item: Decodable, Identifiable, Hashable {

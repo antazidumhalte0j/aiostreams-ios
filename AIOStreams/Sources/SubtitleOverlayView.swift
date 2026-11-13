@@ -204,7 +204,12 @@ final class SubtitleOverlayView: UIView {
         if bold || look.bold { traits.insert(.traitBold) }
         if italic { traits.insert(.traitItalic) }
         if !traits.isEmpty, let styled = descriptor.withSymbolicTraits(traits) { descriptor = styled }
-        return UIFont(descriptor: descriptor, size: size)
+        // libass, which draws mpv's subtitles in the other apps, makes a font's line (ascender to
+        // descender) the size it's given, where UIKit makes its em that size. Sized as libass does,
+        // each step matches the web and Android apps instead of reading about a fifth larger.
+        let nominal = UIFont(descriptor: descriptor, size: size)
+        let line = nominal.ascender - nominal.descender
+        return line > 0 ? UIFont(descriptor: descriptor, size: size * size / line) : nominal
     }
 
     private func attributed(runs: [SubtitleTextRun]?, text: String?, height: CGFloat) -> NSAttributedString {

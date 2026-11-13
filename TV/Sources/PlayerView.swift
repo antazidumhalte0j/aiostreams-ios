@@ -238,8 +238,29 @@ final class PlayerModel: ObservableObject {
 
     // MARK: Holding left or right
 
-    /// Where a held left or right has scrubbed to, while it's held.
-    @Published private(set) var scrubTarget: Double?
+    /// Where a held left or right, or a swipe, has scrubbed to, while it lasts.
+    @Published private(set) var scrubTarget: Double? {
+        didSet { if let scrubTarget { wantPreview(scrubTarget) } else { preview = nil } }
+    }
+    /// A frame from where the scrub would land, shown over the bar.
+    @Published private(set) var preview: CGImage?
+    private var previewBusy = false
+    private var previewWanted: Double?
+
+    /// Asks the engine for a frame at `seconds`; while one is being made, only the latest ask waits.
+    private func wantPreview(_ seconds: Double) {
+        previewWanted = seconds
+        guard !previewBusy else { return }
+        previewBusy = true
+        Task { [weak self] in
+            guard let self else { return }
+            let image = await self.engine.scrubThumbnail(atSeconds: seconds, maxWidth: 480)
+            self.previewBusy = false
+            guard self.scrubTarget != nil else { return }
+            if let image { self.preview = image }
+            if let wanted = self.previewWanted, wanted != seconds { self.wantPreview(wanted) }
+        }
+    }
     /// How many times faster than playback the scrub moves, for its badge; negative backwards.
     @Published private(set) var scrubSpeed = 0
     private var scrubTask: Task<Void, Never>?
