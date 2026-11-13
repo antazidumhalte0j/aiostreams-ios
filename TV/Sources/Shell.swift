@@ -67,6 +67,9 @@ struct MainView: View {
 
     private var open: Bool { railFocus != nil }
 
+    /// Where the shade stops being solid: past the open rail's widest name.
+    private static let solidShade = Theme.px(12 + 232 + 32)
+
     private func path(_ place: Place) -> Binding<NavigationPath> {
         Binding(get: { paths[place] ?? NavigationPath() }, set: { paths[place] = $0 })
     }
@@ -102,11 +105,13 @@ struct MainView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            // The open rail's shade over the page beside it.
+            // The open rail's shade over the page beside it: solid under the names, so the page's
+            // own text can't show through them, then fading out across the page.
             LinearGradient(
                 stops: [
                     .init(color: .black, location: 0),
-                    .init(color: .black.opacity(0.85), location: 0.5),
+                    .init(color: .black, location: Self.solidShade / Theme.px(576)),
+                    .init(color: .black.opacity(0.7), location: 0.75),
                     .init(color: .clear, location: 1),
                 ],
                 startPoint: .leading,
@@ -265,7 +270,8 @@ struct MainView: View {
     }
 
     private func entry(_ item: Place) -> some View {
-        let current = item == place || (item == .settings && place == .account)
+        // You and Settings open the same page; only the one chosen shows as current.
+        let current = item == place
         return Button {
             if item == place {
                 // Choosing the place you're on goes back to its first page.
