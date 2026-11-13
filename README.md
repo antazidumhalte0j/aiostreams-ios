@@ -93,6 +93,7 @@ tvOS has no WebKit, so the web app can't run there. The Apple TV app (`TV/`) is 
 
 - **Connecting:** enter the server address from the configure page (Save & Install → Jellyfin apps → Connect). Sign in with Quick Connect (approve the code on the configure page), by picking a user, or with a name and password.
 - **Browsing:** Home has Continue Watching, Next Up and a row for each library. There's also search, library grids, and details pages with seasons and episodes.
+- **Skipping and the next episode:** intros, recaps, credits, previews and ads the server knows (its configuration's Skip intro and credits) get a skip button, or are skipped automatically, per Settings → Skipping and the next episode. Near the end, or at the credits, the next episode is offered with a countdown and plays on in the version that matches, asking "Are you still watching?" after a run of episodes. The settings are shared with the web app.
 - **Anime upscaling:** with Settings → Video → Anime upscaling on, anime up to 1080p plays through AetherEngine's line-art scaler (Anime4K). A title counts as anime when it, its season or its show has an AniList, Kitsu, MyAnimeList or AniDB id, as in the web app. On iPhone and iPad, the web app's own Anime upscaling setting drives the same scaler.
 - **Live TV:** on a server with channels, Live TV appears in the sidebar. Browse channels by group (Favourites, Recent, All channels and the server's genres) as a list of what's on now and next, or as a guide of the coming six hours. Channels play live, with no seeking.
 - **Versions:** the streams your addons found, in the order the server sorted them. Picking one also fetches its subtitles from your subtitle addons.
@@ -100,7 +101,7 @@ tvOS has no WebKit, so the web app can't run there. The Apple TV app (`TV/`) is 
 
 It shares `Support.swift` and `SubtitleOverlayView.swift` with the iOS app. The build makes `AIOStreams-tvOS.ipa` alongside the iPhone one. AltStore and SideStore don't install on Apple TV. Use Xcode with a paired Apple TV, or another signing tool that supports tvOS.
 
-Not in the Apple TV app yet: playing the next episode automatically, skipping intros, Live TV reminders, and playing earlier programmes from the guide.
+Not in the Apple TV app yet: Live TV reminders, and playing earlier programmes from the guide.
 
 ## Not done yet
 

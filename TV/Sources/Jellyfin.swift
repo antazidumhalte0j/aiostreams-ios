@@ -155,6 +155,40 @@ struct SourceExtension: Decodable, Hashable {
     var name: String?
     var description: String?
     var ytId: String?
+    /// Versions of one release across episodes share it, which the next episode carries on in.
+    var bingeGroup: String?
+}
+
+/// A stretch of a title the server knows: an intro, recap, credits, preview or ad (Jellyfin's
+/// media segments, which the AIOStreams server fills from IntroDB, AniSkip and others).
+struct MediaSegment: Decodable, Hashable, Identifiable {
+    var type: String
+    var startTicks: Int64
+    var endTicks: Int64
+
+    var id: String { "\(type):\(startTicks)" }
+    var start: Double { Double(startTicks) / 10_000_000 }
+    var end: Double { Double(endTicks) / 10_000_000 }
+
+    private enum CodingKeys: String, CodingKey { case type, startTicks, endTicks }
+
+    /// Jellyfin's types, which a server may send by name or by number.
+    private static let numbered = [1: "Commercial", 2: "Preview", 3: "Recap", 4: "Outro", 5: "Intro"]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let name = try? container.decode(String.self, forKey: .type) {
+            type = name
+        } else {
+            type = Self.numbered[(try? container.decode(Int.self, forKey: .type)) ?? 0] ?? "Unknown"
+        }
+        startTicks = (try? container.decode(Int64.self, forKey: .startTicks)) ?? 0
+        endTicks = (try? container.decode(Int64.self, forKey: .endTicks)) ?? 0
+    }
+}
+
+struct SegmentsResult: Decodable {
+    var items: [MediaSegment]?
 }
 
 struct MediaStream: Decodable, Hashable {

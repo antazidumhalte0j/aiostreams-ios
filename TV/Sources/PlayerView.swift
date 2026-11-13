@@ -36,6 +36,10 @@ final class PlayerModel: ObservableObject {
     @Published private(set) var buffered: Double = 0
     @Published private(set) var speed: Double = 1
     @Published private(set) var fit: Fit = .fit
+    /// The intros, recaps and credits the server knows for this title.
+    @Published private(set) var segments: [MediaSegment] = []
+    /// The episode after this one, which the up next offer plays.
+    @Published private(set) var nextEpisode: Item?
 
     enum Fit: String, CaseIterable {
         case fit = "Fit", crop = "Crop", stretch = "Stretch"
@@ -149,6 +153,7 @@ final class PlayerModel: ObservableObject {
         options.objectAudioRendering = speakers.map { .render($0) } ?? .off
         options.isLive = isLive
 
+        Task { [weak self] in await self?.loadExtras() }
         AppLog.info("player", "load \(request.item.id) source=\(request.source.ownId) host=\(url.host ?? "?")")
         loadTask = Task { [weak self] in
             guard let self else { return }
@@ -173,6 +178,21 @@ final class PlayerModel: ObservableObject {
                 self.failure = error.localizedDescription
             }
         }
+    }
+
+    /// The segments and the next episode, alongside the load.
+    private func loadExtras() async {
+        guard !isLive, let userId else { return }
+        let item = request.item
+        let found: SegmentsResult? = try? await client.get("/MediaSegments/\(item.id)", ["userId": userId])
+        segments = (found?.items ?? []).filter { $0.end > $0.start }.sorted { $0.start < $1.start }
+        // The episode after this one, as the web app finds it; one not yet out isn't offered.
+        guard item.isEpisode, let series = item.seriesId else { return }
+        let around: ItemsResult? = try? await client.get("/Shows/\(series)/Episodes", ["userId": userId, "AdjacentTo": item.id])
+        let episodes = around?.items ?? []
+        guard let at = episodes.firstIndex(where: { $0.id == item.id }), at + 1 < episodes.count else { return }
+        let next = episodes[at + 1]
+        if next.locationType != "Virtual" { nextEpisode = next }
     }
 
     /// Anime by the web app's test: an anime database id on the title, its season or its show. A

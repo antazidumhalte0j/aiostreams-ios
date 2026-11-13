@@ -104,6 +104,24 @@ final class Preferences: ObservableObject {
 
     var heroSeconds: Double { number("heroSeconds", 9) }
 
+    // MARK: Skipping and the next episode, under the web app's keys (lib/settings)
+
+    /// `ask` offers a button, `skip` skips by itself, `none` leaves it, for Intro, Recap, Outro,
+    /// Preview and Commercial.
+    func segmentAction(_ type: String) -> String { text("segment\(type)", "ask") }
+
+    /// When the next episode is offered: at the credits (`credits`), near the end (`end`), or `off`.
+    var nextPrompt: String { text("nextPrompt", "credits") }
+    /// Seconds before the end the offer comes, with no credits to go by.
+    var nextLead: Double { number("nextLead", 30) }
+    var nextCountdown: Double { number("nextCountdown", 15) }
+    /// With no version in the same binge group, play the first rather than list them.
+    var nextFallbackFirst: Bool { flag("nextFallbackFirst", true) }
+    /// After this many episodes in a row with nobody pressing anything, ask first; 0 never asks.
+    var stillWatching: Int { Int(number("stillWatching", 3)) }
+    /// Jellyfin's own setting, which the web app's switch changes.
+    var autoplayNext: Bool { configuration["EnableNextEpisodeAutoPlay"] as? Bool ?? true }
+
     /// Play starts the first version rather than listing them (the web app's `autoPlayFirst`).
     var autoPlayFirst: Bool { flag("autoPlayFirst", false) }
 
@@ -234,6 +252,28 @@ struct SettingsView: View {
                             current: prefs.subtitleMode
                         ) { prefs.configure(["SubtitleMode": $0]) }
                     }
+                }
+                section("Skipping and the next episode", note: "Shared with the web app. Intros, recaps and credits come from your server, with Skip intro and credits on in its configuration.") {
+                    ForEach([("Intro", "Intros"), ("Recap", "Recaps"), ("Outro", "Credits"), ("Preview", "Previews"), ("Commercial", "Ads")], id: \.0) { entry in
+                        synced(entry.1, key: "segment\(entry.0)", fallback: "ask",
+                               options: [("Show a skip button", "ask"), ("Skip automatically", "skip"), ("Don't skip", "none")])
+                    }
+                    row("Play the next episode automatically", value: prefs.autoplayNext ? "On" : "Off") {
+                        prefs.configure(["EnableNextEpisodeAutoPlay": !prefs.autoplayNext])
+                    }
+                    synced("Offer the next episode", key: "nextPrompt", fallback: "credits",
+                           options: [("At the credits", "credits"), ("Near the end", "end"), ("Never", "off")])
+                    synced("Without credits, offer it", key: "nextLead", fallback: "30",
+                           options: [15, 30, 45, 60, 90, 120].map { ("\($0) seconds before the end", String($0)) })
+                    synced("Countdown", key: "nextCountdown", fallback: "15",
+                           options: [5, 10, 15, 30].map { ("\($0) seconds", String($0)) })
+                    toggle("Play the first version when none matches", key: "nextFallbackFirst", fallback: true)
+                    synced("Ask if you're still watching", key: "stillWatching", fallback: "3",
+                           options: [("Never", "0")] + [2, 3, 4, 5, 8].map { ("After \($0) episodes", String($0)) })
+                    Text("The next episode plays in the version that matches the one you're watching. Where none does, the first plays, or with that off, the versions are listed. Back hides the offer.")
+                        .font(Theme.font(Theme.sm))
+                        .foregroundStyle(Theme.gray400)
+                        .padding(.horizontal, Theme.px(16))
                 }
                 section("Video", note: nil) {
                     row("Anime upscaling", value: prefs.animeUpscaling ? "On" : "Off") {

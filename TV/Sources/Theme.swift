@@ -52,7 +52,7 @@ enum Theme {
 }
 
 /// Reads focus inside a button style, where only a view can.
-private struct Focused<Content: View>: View {
+struct Focused<Content: View>: View {
     @Environment(\.isFocused) private var focused
     let content: (Bool) -> Content
     var body: some View { content(focused) }

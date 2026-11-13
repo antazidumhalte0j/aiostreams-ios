@@ -8,35 +8,85 @@ import SwiftUI
 struct PlayerScreen: View {
     let request: PlayRequest
     let close: () -> Void
+    /// Lists an episode's versions, for one whose next episode has none that carries on.
+    var listVersions: (Item) -> Void = { _ in }
 
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var prefs: Preferences
     @State private var model: PlayerModel?
+    /// The episode a version is being found for, to play on in.
+    @State private var finding: Item?
 
     var body: some View {
         Group {
             if let model {
-                PlayerChrome(model: model, close: finish)
+                PlayerChrome(model: model, close: finish, playNext: { next in Task { await playOn(next) } }, finding: finding)
+                    // A new title starts the controls over.
+                    .id(model.request.id)
             } else {
                 Color.black
             }
         }
         .ignoresSafeArea()
-        .onAppear {
-            guard model == nil, let client = session.client else { return }
-            let player = PlayerModel(
-                request: request,
-                client: client,
-                audioLanguages: prefs.audioLanguages,
-                subtitleLanguages: prefs.subtitleLanguages,
-                look: prefs.subtitleLook,
-                speakers: prefs.speakers,
-                animeUpscaling: prefs.animeUpscaling,
-                userId: session.userId
-            )
-            model = player
-            player.start()
+        .overlay(alignment: .bottom) {
+            if let finding {
+                HStack(spacing: Theme.px(12)) {
+                    ProgressView()
+                    Text("Finding a version of \(finding.displayTitle)…").font(Theme.font(Theme.base, .medium))
+                }
+                .padding(.horizontal, Theme.px(20))
+                .padding(.vertical, Theme.px(12))
+                .background(Capsule().fill(Color(white: 17 / 255).opacity(0.95)))
+                .padding(.bottom, Theme.px(40))
+            }
         }
+        .onAppear { if model == nil { start(request) } }
+    }
+
+    private func start(_ request: PlayRequest) {
+        guard let client = session.client else { return }
+        let player = PlayerModel(
+            request: request,
+            client: client,
+            audioLanguages: prefs.audioLanguages,
+            subtitleLanguages: prefs.subtitleLanguages,
+            look: prefs.subtitleLook,
+            speakers: prefs.speakers,
+            animeUpscaling: prefs.animeUpscaling,
+            userId: session.userId
+        )
+        model = player
+        player.start()
+    }
+
+    /// Plays the next episode here, in the version that carries on from this one: the same binge
+    /// group, else the only or first one where allowed. Without one, its versions are listed.
+    private func playOn(_ next: Item) async {
+        guard finding == nil, let current = model, let client = session.client, let userId = session.userId else { return }
+        finding = next
+        defer { finding = nil }
+        let info = try? await client.playbackInfo(userId: userId, itemId: next.id)
+        let sources = (info?.mediaSources ?? []).filter { $0.aiostreams?.ytId == nil }
+        let group = current.request.source.aiostreams?.bingeGroup
+        let carried = group.flatMap { group in sources.first { $0.aiostreams?.bingeGroup == group } }
+            ?? (sources.count == 1 || prefs.nextFallbackFirst ? sources.first : nil)
+        guard let source = carried else {
+            listVersions(next)
+            finish()
+            return
+        }
+        // Named again, the version brings its subtitles from the configuration's subtitle addons.
+        var chosen = source
+        var playSession = info?.playSessionId
+        if let named = try? await client.playbackInfo(userId: userId, itemId: next.id, sourceId: source.ownId),
+           let match = named.mediaSources?.first(where: { $0.ownId == source.ownId }) ?? named.mediaSources?.first {
+            chosen = match
+            playSession = named.playSessionId ?? playSession
+        }
+        LastVersions.set(next.id, chosen.ownId)
+        current.stop()
+        let startMs = next.userData?.played == true ? nil : next.resumeMs
+        start(PlayRequest(item: next, source: chosen, playSessionId: playSession, startMs: startMs))
     }
 
     private func finish() {
@@ -45,8 +95,14 @@ struct PlayerScreen: View {
     }
 }
 
+/// Episodes played on by themselves since anyone last pressed anything, for "Are you still watching?".
+@MainActor
+enum UnattendedPlays {
+    static var count = 0
+}
+
 private enum PlayerFocus: Hashable {
-    case surface, bar, play, back, forward, tracks, chapters, speed, fit
+    case surface, bar, play, back, forward, tracks, chapters, speed, fit, skip, next, keepWatching, stop
 }
 
 private enum PlayerPanel: Hashable {
@@ -56,6 +112,24 @@ private enum PlayerPanel: Hashable {
 private struct PlayerChrome: View {
     @ObservedObject var model: PlayerModel
     let close: () -> Void
+    let playNext: (Item) -> Void
+    let finding: Item?
+
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
+    /// The segment a skip button is offered for.
+    @State private var offer: MediaSegment?
+    /// The first seconds of an offered segment, when its button shows over hidden controls.
+    @State private var offerFresh = false
+    @State private var freshTask: Task<Void, Never>?
+    /// "Skipped intro", after a skip the settings made.
+    @State private var notice: String?
+    @State private var noticeTask: Task<Void, Never>?
+    /// Back hid the up next offer; seeking back before it brings it back.
+    @State private var upNextDismissed = false
+    @State private var askingStill = false
+    @State private var countdownLeft: Double = 15
+    @State private var playingOn = false
 
     @State private var shown = true
     @State private var panel: PlayerPanel?
@@ -156,6 +230,7 @@ private struct PlayerChrome: View {
                 .focusable(!shown && panel == nil)
                 .focused($focus, equals: .surface)
                 .onMoveCommand { direction in
+                    input()
                     switch direction {
                     // Live, there's nothing to skip through: a press only shows the controls.
                     case .left where model.isLive, .right where model.isLive: reveal(.play)
@@ -164,7 +239,7 @@ private struct PlayerChrome: View {
                     default: reveal(.play)
                     }
                 }
-                .onTapGesture { reveal(.play) }
+                .onTapGesture { input(); reveal(.play) }
 
             if model.waiting && model.failure == nil {
                 ProgressView().scaleEffect(1.6)
@@ -187,14 +262,51 @@ private struct PlayerChrome: View {
                 }
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
+
+            if panel == nil && model.failure == nil {
+                VStack(alignment: .trailing, spacing: Theme.px(12)) {
+                    if let notice {
+                        Text(notice)
+                            .font(Theme.font(Theme.sm, .medium))
+                            .padding(.horizontal, Theme.px(14))
+                            .padding(.vertical, Theme.px(8))
+                            .background(Capsule().fill(.black.opacity(0.7)))
+                            .transition(.opacity)
+                    }
+                    if askingStill {
+                        stillWatchingCard
+                    } else if upNextShown, let next = model.nextEpisode {
+                        upNextCard(next)
+                    } else if skipShown, let offer {
+                        Button { skip(offer) } label: {
+                            Label(skipLabel(offer.type), systemImage: "forward.end.fill")
+                        }
+                        .buttonStyle(SkipStyle())
+                        .focused($focus, equals: .skip)
+                        .transition(.opacity)
+                    }
+                }
+                .padding(.trailing, Theme.px(40))
+                .padding(.bottom, shown ? Theme.px(150) : Theme.px(48))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .focusSection()
+            }
         }
         .font(Theme.font(Theme.base))
         .foregroundStyle(.white)
         .animation(.easeOut(duration: 0.2), value: shown)
         .animation(.easeOut(duration: 0.2), value: panel)
-        .onPlayPauseCommand { model.togglePause(); wake() }
+        .onPlayPauseCommand { input(); model.togglePause(); wake() }
         .onExitCommand {
-            if panel != nil { closePanel() }
+            if askingStill { close() }
+            else if panel != nil { closePanel() }
+            else if upNextShown && (focus == .next || !shown) {
+                upNextDismissed = true
+                focus = shown ? .play : .surface
+            } else if skipShown && focus == .skip && !shown {
+                offerFresh = false
+                focus = .surface
+            }
             else if shown && model.failure == nil { hide() }
             else { close() }
         }
@@ -202,7 +314,36 @@ private struct PlayerChrome: View {
         .onChange(of: focus) { _, _ in if shown { wake() } }
         // The subtitles rise over the controls while they show, and settle back as they hide.
         .onChange(of: shown) { _, shown in model.liftSubtitles(shown ? liftShare : 0) }
-        .onChange(of: model.finished) { _, done in if done { close() } }
+        // At the end, the next episode plays on where Jellyfin's autoplay is on.
+        .onChange(of: model.finished) { _, done in
+            guard done else { return }
+            if model.nextEpisode != nil && prefs.autoplayNext { playOn(auto: true) } else { close() }
+        }
+        .onChange(of: inside?.id) { _, _ in enter(inside) }
+        .onChange(of: skipShown) { _, showing in
+            if showing && !shown { focus = .skip }
+            if !showing && focus == .skip { focus = shown ? .play : .surface }
+        }
+        .onChange(of: upNextShown) { _, showing in
+            if showing && !shown { focus = .next }
+            if !showing {
+                countdownLeft = prefs.nextCountdown
+                if focus == .next { focus = shown ? .play : .surface }
+            }
+        }
+        .onChange(of: upNextDue) { _, due in if !due { upNextDismissed = false } }
+        .onChange(of: askingStill) { _, asking in if asking { focus = .keepWatching } }
+        .onAppear { countdownLeft = prefs.nextCountdown }
+        // Counts down while the offer shows and the video plays, then plays on.
+        .task(id: counting) {
+            guard counting else { return }
+            while countdownLeft > 0 {
+                try? await Task.sleep(for: .milliseconds(250))
+                if Task.isCancelled { return }
+                countdownLeft -= 0.25
+            }
+            playOn(auto: true)
+        }
         .onChange(of: model.paused) { _, paused in if paused { reveal(nil) } else { wake() } }
     }
 
@@ -250,6 +391,7 @@ private struct PlayerChrome: View {
                 .focusable(shown && panel == nil)
                 .focused($focus, equals: .bar)
                 .onMoveCommand { direction in
+                    input()
                     switch direction {
                     case .left: if !moved(-1) { model.skip(-10) }
                     case .right: if !moved(1) { model.skip(10) }
@@ -351,6 +493,161 @@ private struct PlayerChrome: View {
         .background(RoundedRectangle(cornerRadius: Theme.px(16)).fill(Color(white: 17 / 255).opacity(0.95)))
     }
 
+    // MARK: Skipping and the next episode
+
+    /// Someone's there: the run of episodes played on by themselves starts over.
+    private func input() { UnattendedPlays.count = 0 }
+
+    /// The segment playing now, short of its last second.
+    private var inside: MediaSegment? {
+        let at = model.position
+        return model.segments.first { at >= $0.start && at < $0.end - 1 }
+    }
+
+    /// Credits that end the episode, which the next episode's offer takes over from.
+    private func endsEpisode(_ segment: MediaSegment) -> Bool {
+        let duration = model.duration
+        return duration > 0 && segment.end >= duration * 0.9 && duration - segment.end <= 30
+    }
+
+    /// Where the next episode is offered: at the credits when they end the episode, else the
+    /// chosen lead before the end. None for a short video, or with the offer off.
+    private var promptAt: Double? {
+        guard model.nextEpisode != nil, model.duration >= 40, prefs.nextPrompt != "off" else { return nil }
+        if prefs.nextPrompt == "credits",
+           let credits = model.segments.first(where: { $0.type == "Outro" && endsEpisode($0) }) {
+            return credits.start
+        }
+        return model.duration - prefs.nextLead
+    }
+
+    private var upNextDue: Bool { promptAt.map { model.position >= $0 } ?? false }
+    private var upNextShown: Bool { upNextDue && !upNextDismissed && !askingStill && !playingOn && finding == nil }
+    private var counting: Bool { upNextShown && prefs.autoplayNext && !model.paused }
+
+    private var skipShown: Bool {
+        guard let offer, inside?.id == offer.id else { return false }
+        // The next episode's offer stands in for skipping the credits.
+        if offer.type == "Outro" && endsEpisode(offer) && upNextDue && !upNextDismissed { return false }
+        return shown || offerFresh
+    }
+
+    /// A segment starting: skipped where the settings say, else offered for a few seconds.
+    private func enter(_ segment: MediaSegment?) {
+        freshTask?.cancel()
+        offerFresh = false
+        offer = nil
+        guard let segment, !model.scrubbing, model.scrubTarget == nil else { return }
+        switch prefs.segmentAction(segment.type) {
+        case "skip":
+            // Credits before the next episode's offer are left to it.
+            if segment.type == "Outro" && endsEpisode(segment) && promptAt != nil { return }
+            model.seek(to: segment.end)
+            show(skippedLabel(segment.type))
+        case "ask":
+            offer = segment
+            offerFresh = true
+            freshTask = Task {
+                try? await Task.sleep(for: .seconds(8))
+                if !Task.isCancelled { offerFresh = false }
+            }
+        default:
+            break
+        }
+    }
+
+    private func skip(_ segment: MediaSegment) {
+        input()
+        offer = nil
+        model.seek(to: segment.end)
+        wake()
+    }
+
+    private func show(_ text: String) {
+        notice = text
+        noticeTask?.cancel()
+        noticeTask = Task {
+            try? await Task.sleep(for: .seconds(3))
+            if !Task.isCancelled { notice = nil }
+        }
+    }
+
+    private func skipLabel(_ type: String) -> String {
+        ["Intro": "Skip intro", "Recap": "Skip recap", "Outro": "Skip credits", "Preview": "Skip preview",
+         "Commercial": "Skip ad"][type] ?? "Skip"
+    }
+
+    private func skippedLabel(_ type: String) -> String {
+        ["Intro": "Skipped intro", "Recap": "Skipped recap", "Outro": "Skipped credits", "Preview": "Skipped preview",
+         "Commercial": "Skipped ad"][type] ?? "Skipped"
+    }
+
+    /// Moves on to the next episode; by itself, after a run of them, it asks first.
+    private func playOn(auto: Bool) {
+        guard !playingOn else { return }
+        guard let next = model.nextEpisode else { return close() }
+        if auto {
+            let limit = prefs.stillWatching
+            if limit > 0 && UnattendedPlays.count + 1 >= limit {
+                askingStill = true
+                if !model.paused && !model.finished { model.togglePause() }
+                return
+            }
+            UnattendedPlays.count += 1
+        } else {
+            input()
+        }
+        playingOn = true
+        playNext(next)
+    }
+
+    private func upNextCard(_ next: Item) -> some View {
+        HStack(spacing: Theme.px(14)) {
+            if let client = session.client {
+                RemoteImage(url: client.still(next, height: 180))
+                    .frame(width: Theme.px(144), height: Theme.px(81))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.px(8), style: .continuous))
+            }
+            VStack(alignment: .leading, spacing: Theme.px(6)) {
+                Text("Next episode").font(Theme.font(Theme.xs, .medium)).foregroundStyle(Theme.gray400)
+                Text(next.displayTitle).font(Theme.font(Theme.base, .semibold)).lineLimit(1)
+                Button { playOn(auto: false) } label: {
+                    Label(counting ? "Playing in \(max(1, Int(countdownLeft.rounded(.up))))s" : "Play next",
+                          systemImage: "play.fill")
+                        .monospacedDigit()
+                }
+                .buttonStyle(SoftPillStyle(selected: true))
+                .focused($focus, equals: .next)
+            }
+        }
+        .padding(Theme.px(14))
+        .frame(maxWidth: Theme.px(440), alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: Theme.px(14), style: .continuous).fill(Color(white: 17 / 255).opacity(0.95)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.px(14), style: .continuous).stroke(.white.opacity(0.1), lineWidth: Theme.px(1)))
+        .transition(.opacity)
+    }
+
+    private var stillWatchingCard: some View {
+        VStack(alignment: .leading, spacing: Theme.px(12)) {
+            Text("Are you still watching?").font(Theme.font(Theme.lg, .semibold))
+            HStack(spacing: Theme.px(8)) {
+                Button("Keep watching") {
+                    askingStill = false
+                    playOn(auto: false)
+                }
+                .buttonStyle(SoftPillStyle(selected: true))
+                .focused($focus, equals: .keepWatching)
+                Button("Stop") { close() }
+                    .buttonStyle(SoftPillStyle())
+                    .focused($focus, equals: .stop)
+            }
+        }
+        .padding(Theme.px(18))
+        .background(RoundedRectangle(cornerRadius: Theme.px(14), style: .continuous).fill(Color(white: 17 / 255).opacity(0.95)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.px(14), style: .continuous).stroke(.white.opacity(0.1), lineWidth: Theme.px(1)))
+        .transition(.opacity)
+    }
+
     // MARK: Showing and hiding
 
     /// Shows the controls, focusing `target` where given.
@@ -434,6 +731,24 @@ private struct ProgressTrack: View {
         }
         .frame(height: Theme.px(16))
         .animation(.easeOut(duration: 0.15), value: focused)
+    }
+}
+
+/// The skip button over the video: white on dark, filling white with focus.
+private struct SkipStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Focused { focused in
+            configuration.label
+                .font(Theme.font(Theme.base, .semibold))
+                .foregroundStyle(focused ? .black : .white)
+                .padding(.horizontal, Theme.px(18))
+                .frame(height: Theme.px(44))
+                .background(Capsule().fill(focused ? Color.white : Color.black.opacity(0.65)))
+                .overlay(Capsule().stroke(.white.opacity(focused ? 0 : 0.4), lineWidth: Theme.px(1)))
+                .scaleEffect(focused ? 1.05 : 1)
+                .animation(.easeOut(duration: 0.12), value: focused)
+                .opacity(configuration.isPressed ? 0.85 : 1)
+        }
     }
 }
 

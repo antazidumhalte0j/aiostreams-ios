@@ -44,6 +44,8 @@ struct PlayFlow: ViewModifier {
     @State private var pendingPlay: PlayRequest?
     /// The title a version is being found for, without the list.
     @State private var finding: Item?
+    /// An episode the player played on to, whose versions are listed once the player has closed.
+    @State private var listAfterPlayer: VersionChoice?
 
     private func straight(_ choice: VersionChoice) -> Bool {
         switch choice.mode {
@@ -99,11 +101,18 @@ struct PlayFlow: ViewModifier {
                 // The page stays in sight, dimmed, behind the panel.
                 .presentationBackground(.clear)
             }
-            .fullScreenCover(item: $playing) { request in
-                PlayerScreen(request: request) {
+            .fullScreenCover(item: $playing, onDismiss: {
+                if let next = listAfterPlayer {
+                    listAfterPlayer = nil
+                    choice = next
+                }
+            }) { request in
+                PlayerScreen(request: request, close: {
                     playing = nil
                     finished()
-                }
+                }, listVersions: { item in
+                    listAfterPlayer = VersionChoice(item: item, startMs: item.userData?.played == true ? nil : item.resumeMs, mode: .list)
+                })
                 .environmentObject(session)
                 .environmentObject(prefs)
             }
