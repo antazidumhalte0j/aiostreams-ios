@@ -79,6 +79,8 @@ final class Bridge: NSObject {
             version: \(literal(AppInfo.version)),
             platform: 'ios',
             miniPlayer: false,
+            // Picture in Picture, which shows the player's button for it.
+            pip: true,
             hours24: \(Self.uses24HourClock ? "true" : "false"),
             device: \(literal(AppInfo.deviceName)),
             deviceId: \(literal(AppInfo.deviceId)),

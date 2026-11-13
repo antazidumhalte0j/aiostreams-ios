@@ -13,6 +13,9 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
     private let bridge = Bridge()
     private var webView: WKWebView!
     private var player: PlayerChannel!
+    private var pictureInPicture: PictureInPicture!
+    /// The web app's logo, covering the page until its own splash has drawn.
+    private var launchLogo: LaunchLogo?
 
     private var fullscreen = false
     private var linksReady = false
@@ -44,6 +47,9 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         configuration.applicationNameForUserAgent = "AIOStreams-iOS/\(AppInfo.version)"
         configuration.websiteDataStore = .default()
         bridge.install(into: configuration.userContentController)
+        configuration.userContentController.addUserScript(
+            WKUserScript(source: LaunchLogo.script, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        )
         if let seed = DemoMode.storageScript {
             configuration.userContentController.addUserScript(
                 WKUserScript(source: seed, injectionTime: .atDocumentStart, forMainFrameOnly: true)
@@ -74,6 +80,10 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             ])
         }
+        let cover = LaunchLogo(frame: root.bounds)
+        cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        root.addSubview(cover)
+        launchLogo = cover
         view = root
     }
 
@@ -85,6 +95,25 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         player.showVideo = { [weak self] shown in
             self?.videoView.isHidden = !shown
             self?.overlay.isHidden = !shown
+        }
+        pictureInPicture = PictureInPicture(engine: engine, channel: player) { [weak self] message in
+            self?.bridge.send(message)
+        }
+        player.mediaChanged = { [weak self] in self?.pictureInPicture?.refresh() }
+        // The window draws the subtitles itself while it's open.
+        pictureInPicture.changed = { [weak self] active in
+            guard let self else { return }
+            self.overlay.isHidden = active || !self.player.hasMedia
+        }
+        pictureInPicture.restore = { [weak self] in self?.view.window?.makeKeyAndVisible() }
+        pictureInPicture.failed = { [weak self] in
+            guard let self, self.presentedViewController == nil,
+                  UIApplication.shared.applicationState == .active else { return }
+            let alert = UIAlertController(title: "Picture in Picture",
+                                          message: "Picture in Picture isn't available for this video right now.",
+                                          preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self.present(alert, animated: true)
         }
         bridge.onMessage = { [weak self] type, message in self?.handle(type, message) }
         webView.load(URLRequest(url: DemoMode.startURL ?? WebAssets.startURL))
@@ -109,6 +138,14 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 "ffmpeg": NSNull(),
                 "player": AppInfo.player,
             ])
+        case "splash-shown":
+            // The page shows the same logo now.
+            launchLogo?.lift()
+            launchLogo = nil
+        case "pip":
+            // The page's Picture in Picture button; `value: false` asks to leave it.
+            if JSON.flag(message["value"]) == false { pictureInPicture.stopForRestore() }
+            else { pictureInPicture.toggle() }
         case "fullscreen":
             setFullscreen(JSON.flag(message["value"]) ?? !fullscreen)
         case "update-check":
@@ -121,7 +158,13 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         case "audio-devices":
             bridge.send(["type": "audio-devices", "devices": NSNull()])
         case "youtube-resolve":
-            bridge.send(["type": "youtube-resolved", "request": message["request"] ?? "", "url": NSNull()])
+            // A trailer: the page plays the stream the app finds, as the Android and desktop apps do.
+            let request = message["request"] ?? ""
+            YouTube.resolve(message["id"] as? String ?? "") { [weak self] stream in
+                var answer: [String: Any] = ["type": "youtube-resolved", "request": request, "url": stream?.url ?? NSNull()]
+                if let language = stream?.originalLanguage { answer["originalLanguage"] = language }
+                self?.bridge.send(answer)
+            }
         case "licenses":
             bridge.send(AppInfo.licenses)
         case "diagnostics":

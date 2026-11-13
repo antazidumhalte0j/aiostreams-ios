@@ -14,6 +14,16 @@ final class PlayerChannel {
     private let nowPlaying: NowPlaying
     /// Shows the video beneath the page, or hides it once nothing plays.
     var showVideo: (Bool) -> Void = { _ in }
+    /// A title loaded or stopped, which changes whether Picture in Picture can be offered.
+    var mediaChanged: () -> Void = {}
+
+    /// A title is loaded and hasn't ended.
+    var hasMedia: Bool { loadedURL != nil && !ended }
+    /// The style the page chose, which the Picture in Picture window's captions follow.
+    var subtitleLook: SubtitleLook { overlay.look }
+
+    /// The window's own close button pauses, as other apps' do.
+    func pauseFromPictureInPicture() { change(["paused": true]) }
 
     private var bag = Set<AnyCancellable>()
     private var loadTask: Task<Void, Never>?
@@ -299,6 +309,7 @@ final class PlayerChannel {
         wantedThumbnail = nil
         overlay.clear()
         showVideo(true)
+        mediaChanged()
         state(["idle": false])
         AppLog.info("player", "load live=\(options.isLive) start=\(Int(startMs)) url=\(url.host ?? "?")")
 
@@ -357,6 +368,7 @@ final class PlayerChannel {
         overlay.clear()
         thumbnails.clear()
         showVideo(false)
+        mediaChanged()
         state(["idle": true])
     }
 

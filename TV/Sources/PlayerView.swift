@@ -249,6 +249,8 @@ final class PlayerModel: ObservableObject {
 
     /// Asks the engine for a frame at `seconds`; while one is being made, only the latest ask waits.
     private func wantPreview(_ seconds: Double) {
+        // Only a session whose bytes the engine holds can make frames; others show the time alone.
+        guard engine.supportsCacheBackedStills else { return }
         previewWanted = seconds
         guard !previewBusy else { return }
         previewBusy = true
