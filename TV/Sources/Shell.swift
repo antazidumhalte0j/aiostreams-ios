@@ -299,7 +299,7 @@ private struct RailButtonStyle: ButtonStyle {
     }
 }
 
-/// One rail button: 48 px high and fully rounded, the current place filled, the focused one lighter.
+/// One rail button: 48 px high and fully rounded, the current place filled, the focused one ringed.
 private struct RailEntry: View {
     @Environment(\.isFocused) private var focused
     let item: Place
