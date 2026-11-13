@@ -31,6 +31,8 @@ jobs:
       AIOSTREAMS_REF: ${{ inputs.aiostreams_ref }}
       # Only a manual run can turn them on; pushes, tags and releases build without them.
       HEIGHT_CHANNELS: ${{ inputs.height_channels && 'on' || 'off' }}
+      # A tag build is the version its tag names, even where another tag shares the commit.
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
     steps:
       # The whole history and its tags: the version comes from the v* tags, the build number from
       # the commit count (scripts/make-ipa.sh).

@@ -11,7 +11,8 @@
 # The version comes from the release tags: v0.2.7 on the commit built makes 0.2.7, and a commit
 # after it builds as 0.2.7 too, told apart by its build number, which is the commit count (it only
 # rises along main, and a rerun or a local build of the same commit gets the same one). APP_VERSION
-# and BUILD_NUMBER override them. A shallow clone has no count, so it needs BUILD_NUMBER.
+# and BUILD_NUMBER override them; RELEASE_TAG, set by the workflow for a tag build, names the
+# version where two tags share a commit. A shallow clone has no count, so it needs BUILD_NUMBER.
 #
 # Height channels are off unless asked for: AetherEngine notes they may be subject to third-party
 # patent licensing, so public releases leave them out. Dolby Vision FEL (curve fold) is in both.
@@ -24,6 +25,9 @@ cd "$here"
 which="${1:-all}"
 
 # The release this commit is, else the last one it follows.
+if [ -z "${APP_VERSION:-}" ] && [ -n "${RELEASE_TAG:-}" ]; then
+  APP_VERSION="${RELEASE_TAG#v}"
+fi
 if [ -z "${APP_VERSION:-}" ]; then
   tag=$(git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null \
     || git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
