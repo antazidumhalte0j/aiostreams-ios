@@ -68,7 +68,7 @@ enum YouTube {
     }()
 
     /// The stream, or nil where no client gets one; answers on the main thread.
-    static func resolve(_ videoId: String, done: @escaping @MainActor (Stream?) -> Void) {
+    static func resolve(_ videoId: String, done: @escaping (Stream?) -> Void) {
         let valid = videoId.count == 11 && videoId.unicodeScalars.allSatisfy {
             CharacterSet.alphanumerics.contains($0) && $0.isASCII || $0 == "_" || $0 == "-"
         }
