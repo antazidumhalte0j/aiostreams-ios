@@ -334,11 +334,19 @@ private struct RailEntry: View {
         .padding(.horizontal, Theme.px(16))
         .frame(width: Self.width, height: Theme.px(48), alignment: .leading)
         .foregroundStyle(current || focused ? Color.white : Theme.gray400)
-        // Drawn past the button's own frame, which focus moves are measured from.
+        // Drawn past the button's own frame, which focus moves are measured from. The page you're
+        // on is filled; where the remote is gets the app's focus ring, so the two never look alike.
         .background(alignment: .leading) {
             Capsule()
-                .fill(Color.white.opacity((current ? 0.1 : 0) + (focused ? 0.2 : 0)))
+                .fill(Color.white.opacity(current ? 0.12 : 0))
                 .frame(width: open ? Self.openWidth : Self.width, height: Theme.px(48))
+                .overlay {
+                    if focused {
+                        Capsule()
+                            .strokeBorder(Theme.ring, lineWidth: Theme.ringWidth)
+                            .padding(-(Theme.ringWidth + Theme.ringOffset))
+                    }
+                }
         }
         .overlay(alignment: .leading) {
             if open {
