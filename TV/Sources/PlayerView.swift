@@ -40,6 +40,22 @@ final class PlayerModel: ObservableObject {
     @Published private(set) var segments: [MediaSegment] = []
     /// The episode after this one, which the up next offer plays.
     @Published private(set) var nextEpisode: Item?
+    /// What the pause screen says about the title, read where the item came without it.
+    @Published private(set) var overview: String?
+    /// Seconds the subtitles are shown later (negative: earlier) than the file says.
+    @Published private(set) var subtitleDelay: Double = 0
+    /// Seconds the sound is held back (negative: brought forward) against the picture.
+    @Published private(set) var audioDelay: Double = 0
+
+    func setSubtitleDelay(_ seconds: Double) {
+        subtitleDelay = (seconds * 10).rounded() / 10
+        overlay.delay = subtitleDelay
+    }
+
+    func setAudioDelay(_ seconds: Double) {
+        audioDelay = (seconds * 100).rounded() / 100
+        engine.setAudioDelay(audioDelay)
+    }
 
     enum Fit: String, CaseIterable {
         case fit = "Fit", crop = "Crop", stretch = "Stretch"
@@ -153,6 +169,9 @@ final class PlayerModel: ObservableObject {
         options.objectAudioRendering = speakers.map { .render($0) } ?? .off
         options.isLive = isLive
 
+        // The engine is shared: a title starts in sync, whatever the last one was set to.
+        engine.setAudioDelay(0)
+        overview = request.item.overview
         Task { [weak self] in await self?.loadExtras() }
         AppLog.info("player", "load \(request.item.id) source=\(request.source.ownId) host=\(url.host ?? "?")")
         loadTask = Task { [weak self] in
@@ -184,6 +203,10 @@ final class PlayerModel: ObservableObject {
     private func loadExtras() async {
         guard !isLive, !request.isTrailer, let userId else { return }
         let item = request.item
+        if overview == nil {
+            let full: ItemsResult? = try? await client.get("/Items", ["userId": userId, "Ids": item.id, "Fields": "Overview"])
+            overview = full?.items?.first?.overview
+        }
         let found: SegmentsResult? = try? await client.get("/MediaSegments/\(item.id)", ["userId": userId])
         segments = (found?.items ?? []).filter { $0.end > $0.start }.sorted { $0.start < $1.start }
         // The episode after this one, as the web app finds it; one not yet out isn't offered.

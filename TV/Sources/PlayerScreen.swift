@@ -102,11 +102,11 @@ enum UnattendedPlays {
 }
 
 private enum PlayerFocus: Hashable {
-    case surface, bar, play, back, forward, tracks, chapters, speed, fit, skip, next, keepWatching, stop
+    case surface, bar, play, back, forward, tracks, chapters, speed, fit, skip, next, keepWatching, stop, sync, episodes
 }
 
 private enum PlayerPanel: Hashable {
-    case tracks, chapters, speed
+    case tracks, chapters, speed, sync, episodes
 }
 
 private struct PlayerChrome: View {
@@ -258,7 +258,11 @@ private struct PlayerChrome: View {
             if let panel {
                 HStack {
                     Spacer()
-                    PlayerPanelView(model: model, panel: panel) { closePanel() }
+                    PlayerPanelView(model: model, panel: panel, play: { episode in
+                        closePanel()
+                        input()
+                        playNext(episode)
+                    }) { closePanel() }
                 }
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
@@ -369,6 +373,16 @@ private struct PlayerChrome: View {
                         .foregroundStyle(Theme.gray300)
                         .lineLimit(1)
                 }
+                // The pause screen: what it's about, while it waits.
+                if model.paused && !model.isLive, let overview = model.overview, !overview.isEmpty {
+                    Text(overview)
+                        .font(Theme.font(Theme.base))
+                        .foregroundStyle(Theme.gray200)
+                        .lineLimit(4)
+                        .frame(maxWidth: Theme.px(720), alignment: .leading)
+                        .padding(.top, Theme.px(10))
+                        .transition(.opacity)
+                }
             }
             Spacer()
         }
@@ -434,9 +448,19 @@ private struct PlayerChrome: View {
                     .padding(.leading, Theme.px(12))
                 }
                 Spacer()
+                if model.request.item.isEpisode {
+                    Button { open(.episodes) } label: { Image(systemName: "list.and.film") }
+                        .buttonStyle(ControlIconStyle())
+                        .focused($focus, equals: .episodes)
+                }
                 Button { open(.tracks) } label: { Image(systemName: "captions.bubble") }
                     .buttonStyle(ControlIconStyle())
                     .focused($focus, equals: .tracks)
+                if !model.isLive {
+                    Button { open(.sync) } label: { Image(systemName: "timer") }
+                        .buttonStyle(ControlIconStyle())
+                        .focused($focus, equals: .sync)
+                }
                 if !model.chapters.isEmpty {
                     Button { open(.chapters) } label: { Image(systemName: "list.bullet") }
                         .buttonStyle(ControlIconStyle())
@@ -722,6 +746,8 @@ private struct PlayerChrome: View {
         case .tracks: focus = .tracks
         case .chapters: focus = .chapters
         case .speed: focus = .speed
+        case .sync: focus = .sync
+        case .episodes: focus = .episodes
         case nil: break
         }
         wake()
@@ -832,9 +858,13 @@ private struct ControlIconStyle: ButtonStyle {
 
 /// A list beside the video: audio and subtitles, chapters, or speed.
 private struct PlayerPanelView: View {
+    @EnvironmentObject private var session: Session
     @ObservedObject var model: PlayerModel
     let panel: PlayerPanel
+    /// Plays another episode, from the Episodes panel.
+    let play: (Item) -> Void
     let done: () -> Void
+    @State private var episodes: [Item] = []
 
     private static let speeds: [Double] = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 
@@ -873,6 +903,27 @@ private struct PlayerPanelView: View {
                             }
                         }
                     }
+                case .sync:
+                    group("Subtitles") {
+                        stepper(model.subtitleDelay, step: 0.1) { model.setSubtitleDelay($0) }
+                    }
+                    group("Audio") {
+                        stepper(model.audioDelay, step: 0.05) { model.setAudioDelay($0) }
+                    }
+                    Text("Later shows subtitles, or plays the sound, after the picture; earlier, before it. Kept for this title.")
+                        .font(Theme.font(Theme.xs))
+                        .foregroundStyle(Theme.gray400)
+                        .padding(.horizontal, Theme.px(12))
+                case .episodes:
+                    group(model.request.item.parentIndexNumber.map { "Season \($0)" } ?? "Episodes") {
+                        if episodes.isEmpty { ProgressView().frame(maxWidth: .infinity) }
+                        ForEach(episodes) { episode in
+                            row(episode.displayTitle, detail: episode.userData?.played == true ? "Watched" : episode.timeLeft,
+                                on: episode.id == model.request.item.id) {
+                                if episode.id != model.request.item.id { play(episode) }
+                            }
+                        }
+                    }
                 }
             }
             .padding(Theme.px(20))
@@ -882,6 +933,34 @@ private struct PlayerPanelView: View {
         .background(Color(white: 11 / 255).opacity(0.95))
         .focusSection()
         .onExitCommand(perform: done)
+        .task(id: panel) { if panel == .episodes { await loadEpisodes() } }
+    }
+
+    /// The season playing, as its show lists it.
+    private func loadEpisodes() async {
+        let item = model.request.item
+        guard let client = session.client, let userId = session.userId, let series = item.seriesId else { return }
+        let found: ItemsResult? = try? await client.get("/Shows/\(series)/Episodes", ["userId": userId, "SeasonId": item.seasonId])
+        // One not out yet can't play.
+        episodes = (found?.items ?? []).filter { $0.locationType != "Virtual" }
+    }
+
+    /// Earlier, the value, later, and back to zero.
+    private func stepper(_ value: Double, step: Double, set: @escaping (Double) -> Void) -> some View {
+        HStack(spacing: Theme.px(8)) {
+            Button { set(value - step) } label: { Image(systemName: "minus") }
+                .buttonStyle(ControlIconStyle())
+            Text(value == 0 ? "In sync" : String(format: "%+.2f s", value))
+                .font(Theme.font(Theme.base, .semibold))
+                .monospacedDigit()
+                .frame(minWidth: Theme.px(110))
+            Button { set(value + step) } label: { Image(systemName: "plus") }
+                .buttonStyle(ControlIconStyle())
+            Button("Reset") { set(0) }
+                .buttonStyle(SoftPillStyle())
+                .disabled(value == 0)
+        }
+        .padding(.horizontal, Theme.px(8))
     }
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {

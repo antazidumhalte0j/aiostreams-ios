@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Where a tapped item leads: a title's page, or a library's grid.
+/// Where a tapped item leads: a title's page, a library's grid, or a person's titles.
 enum Route: Hashable {
     case item(Item)
     case library(Item)
+    case person(Person)
 }
 
 extension View {
@@ -13,6 +14,7 @@ extension View {
                 switch route {
                 case .item(let item): DetailView(item: item)
                 case .library(let view): LibraryView(view: view)
+                case .person(let person): PersonView(person: person)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)

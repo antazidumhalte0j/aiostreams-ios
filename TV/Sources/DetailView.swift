@@ -486,12 +486,13 @@ struct EpisodeCard: View {
 
 /// A cast member: a round picture, their name and role.
 struct PersonCard: View {
+    @Environment(\.openRoute) private var openRoute
     let person: Person
     let url: URL?
 
     var body: some View {
         VStack(spacing: Theme.px(8)) {
-            Button {} label: {
+            Button { openRoute(.person(person)) } label: {
                 ZStack {
                     Circle().fill(Theme.gray900)
                     Text(initials).font(Theme.font(Theme.lg, .semibold)).foregroundStyle(Theme.gray400)
