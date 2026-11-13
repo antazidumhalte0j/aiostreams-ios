@@ -36,6 +36,10 @@ struct HomeView: View {
     /// Episodes of shows you follow airing soon (Jellyfin's Shows/Upcoming), as the web app's row.
     @State private var upcoming: [Item] = []
     @Environment(\.openRoute) private var openRoute
+    @Environment(\.openPlace) private var openPlace
+    /// Favourite channels, then ones played here lately, with what's on: on a server with Live TV.
+    @State private var channels: [Item] = []
+    @State private var airing: [String: Item] = [:]
     @State private var libraries: [HomeRow] = []
     @State private var loading = true
     @State private var error: String?
@@ -60,6 +64,14 @@ struct HomeView: View {
                 }
                 if !merging && !nextUp.isEmpty {
                     WideRow(title: "Next up", items: nextUp, play: play) { EmptyView() }
+                }
+                if !channels.isEmpty {
+                    LiveRow(channels: channels, airing: airing, play: playChannel) {
+                        Button { openPlace(.live) } label: {
+                            Label("All channels", systemImage: "play.tv")
+                        }
+                        .buttonStyle(SoftPillStyle())
+                    }
                 }
                 if !upcoming.isEmpty {
                     // Nothing to play yet, so a card opens its show.
@@ -92,6 +104,35 @@ struct HomeView: View {
         .playFlow($choice) { Task { await load() } }
     }
 
+    /// The Live TV row's channels, as the web app's: favourites, then those played here lately.
+    private func loadChannels(client: JellyfinClient, userId: String) async {
+        let limit = 20
+        let favourites: ItemsResult? = try? await client.get("/LiveTv/Channels", [
+            "userId": userId, "IsFavorite": "true", "Limit": String(limit), "AddCurrentProgram": "true",
+        ])
+        let recentIds = RecentChannels.ids
+        var recents: [Item] = []
+        if !recentIds.isEmpty {
+            let found: ItemsResult? = try? await client.get("/Items", ["userId": userId, "Ids": recentIds.joined(separator: ",")])
+            let byId = Dictionary((found?.items ?? []).map { ($0.id, $0) }) { first, _ in first }
+            recents = recentIds.compactMap { byId[$0] }.filter(\.isChannel)
+        }
+        var seen = Set<String>()
+        let row = (favourites?.items ?? []) + recents
+        channels = Array(row.filter { seen.insert($0.id).inserted }.prefix(limit))
+        // What's on each now, in one ask, as recent channels come without it.
+        guard !channels.isEmpty else { return }
+        let now: ItemsResult? = try? await client.post("/LiveTv/Programs", body: [
+            "UserId": userId, "ChannelIds": channels.map(\.id), "IsAiring": true, "Fields": ["Overview"],
+        ])
+        airing = Dictionary((now?.items ?? []).compactMap { programme in programme.channelId.map { ($0, programme) } }) { first, _ in first }
+    }
+
+    private func playChannel(_ channel: Item) {
+        RecentChannels.note(channel.id)
+        choice = VersionChoice(item: channel, startMs: nil, mode: .straight)
+    }
+
     /// An upcoming episode's show, or the title itself.
     private func openShow(_ item: Item) {
         if let series = item.seriesId {
@@ -118,7 +159,11 @@ struct HomeView: View {
             resume = (try? await resumeResult.items) ?? []
             nextUp = (try? await nextResult.items) ?? []
             upcoming = (try? await upcomingResult.items) ?? []
-            let views = (try await viewsResult.items ?? []).filter(isBrowsable)
+            let allViews = try await viewsResult.items ?? []
+            let views = allViews.filter(isBrowsable)
+            if allViews.contains(where: { $0.collectionType == "livetv" }) {
+                Task { await loadChannels(client: client, userId: userId) }
+            }
 
             // Each library's head, in the configuration's order, as each arrives.
             var heads: [Int: (Item, [Item])] = [:]
@@ -499,5 +544,93 @@ func untilLabel(_ date: Date) -> String {
     case 1: return "tomorrow"
     case ..<14: return "in \(days) days"
     default: return "in \(Int((Double(days) / 7).rounded())) weeks"
+    }
+}
+
+/// Channels as wide cards: the logo over a dark tile, the channel's name and what's on, with how far
+/// through it is. Selecting one plays it live.
+struct LiveRow<Action: View>: View {
+    let channels: [Item]
+    let airing: [String: Item]
+    let play: (Item) -> Void
+    @ViewBuilder let action: () -> Action
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.px(12)) {
+            HStack {
+                Text("Live TV").font(Theme.font(Theme.xl, .semibold))
+                Spacer()
+                action()
+            }
+            .pagePadding()
+            .focusSection()
+            ScrollView(.horizontal) {
+                LazyHStack(alignment: .top, spacing: Theme.px(16)) {
+                    ForEach(channels) { channel in
+                        ChannelCard(channel: channel, airing: airing[channel.id]) { play(channel) }
+                    }
+                }
+                .pagePadding()
+                .padding(.vertical, Theme.px(8))
+            }
+            .edgeToEdge()
+        }
+        .focusSection()
+    }
+}
+
+private struct ChannelCard: View {
+    let channel: Item
+    let airing: Item?
+    let action: () -> Void
+
+    /// What's on: from the guide, else what the channel list sent along.
+    private var programme: (name: String, start: Date?, end: Date?)? {
+        if let airing { return (airing.name ?? "", airing.starts, airing.ends) }
+        if let current = channel.currentProgram { return (current.name ?? "", current.starts, current.ends) }
+        return nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.px(8)) {
+            Button(action: action) {
+                ZStack(alignment: .bottom) {
+                    ZStack {
+                        Theme.gray900
+                        ChannelLogo(channel: channel)
+                            .frame(width: Theme.px(160), height: Theme.px(90))
+                    }
+                    .frame(width: WideCard.size.width, height: WideCard.size.height)
+                    if let programme {
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                Rectangle().fill(.white.opacity(0.25))
+                                Rectangle().fill(Theme.brand500)
+                                    .frame(width: geometry.size.width * airedShare(from: programme.start, to: programme.end, now: Date()))
+                            }
+                        }
+                        .frame(height: Theme.px(4))
+                    }
+                }
+                .frame(width: WideCard.size.width, height: WideCard.size.height)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.px(8), style: .continuous))
+            }
+            .buttonStyle(CardStyle())
+            VStack(alignment: .leading, spacing: Theme.px(2)) {
+                HStack(spacing: Theme.px(6)) {
+                    if let number = channel.channelNumber {
+                        Text(number).foregroundStyle(Theme.gray400).monospacedDigit()
+                    }
+                    Text(channel.name ?? "").lineLimit(1)
+                }
+                .font(Theme.font(15, .semibold))
+                Text(programme?.name ?? "Live")
+                    .font(Theme.font(13))
+                    .foregroundStyle(Theme.gray400)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, Theme.px(2))
+            .frame(width: WideCard.size.width, alignment: .leading)
+        }
     }
 }

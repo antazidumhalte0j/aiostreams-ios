@@ -246,7 +246,7 @@ struct Slot {
 }
 
 /// A channel's logo, fitted into its box, or its number where it has none.
-private struct ChannelLogo: View {
+struct ChannelLogo: View {
     @EnvironmentObject private var session: Session
     let channel: Item
 
