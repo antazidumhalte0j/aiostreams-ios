@@ -91,6 +91,7 @@ targets:
       # Shared with the iOS app.
       - path: AIOStreams/Sources/Support.swift
       - path: AIOStreams/Sources/SubtitleOverlayView.swift
+      - path: AIOStreams/Sources/YouTube.swift
     dependencies:
       - package: AetherEngineFeatures
         product: AetherEngineFeatures

@@ -59,6 +59,7 @@ struct Item: Decodable, Identifiable, Hashable {
     var episodeTitle: String?
     var currentProgram: Programme?
     var providerIds: [String: String]?
+    var remoteTrailers: [RemoteTrailer]?
 
     /// An image tag by Jellyfin's type name. The decoder's key strategy also lowers the first
     /// letter of dictionary keys, so `ImageTags.Primary` arrives as `primary`.
@@ -118,6 +119,30 @@ struct Item: Decodable, Identifiable, Hashable {
     var runtimeText: String? {
         guard let minutes = runtimeMinutes else { return nil }
         return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
+    }
+}
+
+/// A trailer the server knows for a title, usually on YouTube.
+struct RemoteTrailer: Decodable, Hashable {
+    var url: String?
+    var name: String?
+
+    /// The YouTube video's id, from any of its address shapes, as the web app reads it.
+    var youTubeId: String? {
+        guard let url, let parsed = URLComponents(string: url), let host = parsed.host?.lowercased() else { return nil }
+        let bare = host.replacingOccurrences(of: #"^(www|m)\."#, with: "", options: .regularExpression)
+        let id: String?
+        if bare == "youtu.be" {
+            id = String(parsed.path.dropFirst())
+        } else if bare == "youtube.com" || bare == "youtube-nocookie.com" {
+            id = parsed.queryItems?.first { $0.name == "v" }?.value
+                ?? parsed.path.range(of: #"^/(embed|shorts|v)/[^/]+"#, options: .regularExpression)
+                    .map { String(parsed.path[$0].split(separator: "/").last ?? "") }
+        } else {
+            id = nil
+        }
+        guard let id, id.range(of: #"^[\w-]{11}$"#, options: .regularExpression) != nil else { return nil }
+        return id
     }
 }
 

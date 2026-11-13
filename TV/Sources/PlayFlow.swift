@@ -179,4 +179,8 @@ struct PlayRequest: Identifiable {
     let source: MediaSource
     let playSessionId: String?
     let startMs: Double?
+    /// A title's trailer: played without telling the server, so the title's own progress is left alone.
+    var isTrailer = false
+    /// Audio languages in place of the account's, as a trailer's own language stands in for Original.
+    var audioLanguages: [String]?
 }

@@ -160,7 +160,7 @@ final class PlayerModel: ObservableObject {
             var loadOptions = options
             do {
                 // Anime upscaling, decided before the load so the first frame is already upscaled.
-                if self.animeUpscaling, await self.isAnime() {
+                if self.animeUpscaling, !self.request.isTrailer, await self.isAnime() {
                     loadOptions.upscalesLowResolutionVideo = true
                     loadOptions.upscaleScaler = .lineArt
                     AppLog.info("player", "anime upscaling on")
@@ -182,7 +182,7 @@ final class PlayerModel: ObservableObject {
 
     /// The segments and the next episode, alongside the load.
     private func loadExtras() async {
-        guard !isLive, let userId else { return }
+        guard !isLive, !request.isTrailer, let userId else { return }
         let item = request.item
         let found: SegmentsResult? = try? await client.get("/MediaSegments/\(item.id)", ["userId": userId])
         segments = (found?.items ?? []).filter { $0.end > $0.start }.sorted { $0.start < $1.start }
@@ -408,7 +408,7 @@ final class PlayerModel: ObservableObject {
     }
 
     private func report(_ path: String, event: String? = nil) {
-        guard !stopped else { return }
+        guard !stopped, !request.isTrailer else { return }
         if path == "/Sessions/Playing" { reported = true }
         let payload = body(event.map { ["EventName": $0] } ?? [:])
         let client = client

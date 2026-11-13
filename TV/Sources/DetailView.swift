@@ -6,7 +6,12 @@ import SwiftUI
 
 struct DetailView: View {
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
     let item: Item
+    /// The trailer playing, or being found.
+    @State private var trailer: PlayRequest?
+    @State private var findingTrailer = false
+    @State private var trailerFailed = false
 
     @State private var full: Item?
     @State private var seasons: [Item] = []
@@ -43,6 +48,14 @@ struct DetailView: View {
         .task { await load() }
         .reloadOnWatchChange { await load() }
         .playFlow($choice) { Task { await load() } }
+        .fullScreenCover(item: $trailer) { request in
+            PlayerScreen(request: request, close: { trailer = nil })
+                .environmentObject(session)
+                .environmentObject(prefs)
+        }
+        .alert("This trailer couldn't be played.", isPresented: $trailerFailed) {
+            Button("OK", role: .cancel) {}
+        }
         .onAppear { playFocused = true }
     }
 
@@ -143,6 +156,15 @@ struct DetailView: View {
                     .buttonStyle(CircleIconStyle())
                 }
             }
+            if shown.remoteTrailers?.contains(where: { $0.url != nil }) == true {
+                Button {
+                    Task { await playTrailer() }
+                } label: {
+                    if findingTrailer { ProgressView() } else { Image(systemName: "film") }
+                }
+                .buttonStyle(CircleIconStyle())
+                .disabled(findingTrailer)
+            }
             Button {
                 Task { await setPlayed(!(shown.userData?.played ?? false)) }
             } label: {
@@ -223,6 +245,44 @@ struct DetailView: View {
     private func personImage(_ person: Person) -> URL? {
         guard let client = session.client, let tag = person.primaryImageTag else { return nil }
         return client.image(person.id, .primary, tag: tag, height: 192)
+    }
+
+    // MARK: Trailer
+
+    /// Plays the title's first trailer: a YouTube one through the stream the app finds, as the web
+    /// app's players do, any other by its address.
+    private func playTrailer() async {
+        guard !findingTrailer, let trailers = shown.remoteTrailers else { return }
+        findingTrailer = true
+        defer { findingTrailer = false }
+        var found: (url: String, language: String?)?
+        for candidate in trailers {
+            if let id = candidate.youTubeId {
+                let stream: YouTube.Stream? = await withCheckedContinuation { done in
+                    YouTube.resolve(id) { done.resume(returning: $0) }
+                }
+                if let stream { found = (stream.url, stream.originalLanguage) }
+            } else if let url = candidate.url, url.lowercased().hasPrefix("http") {
+                found = (url, nil)
+            }
+            if found != nil { break }
+        }
+        guard let found else {
+            trailerFailed = true
+            return
+        }
+        // The account's audio languages, with Original meaning the trailer's own.
+        let chosen = prefs.languages(list: "AudioLanguages", one: "AudioLanguagePreference")
+        var languages = chosen.compactMap { $0 == "OriginalLanguage" ? found.language : $0 }
+        if languages.isEmpty, let original = found.language { languages = [original] }
+        trailer = PlayRequest(
+            item: shown,
+            source: MediaSource(id: "trailer", name: "Trailer", path: found.url),
+            playSessionId: nil,
+            startMs: nil,
+            isTrailer: true,
+            audioLanguages: languages
+        )
     }
 
     // MARK: Loading

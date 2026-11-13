@@ -48,7 +48,7 @@ struct PlayerScreen: View {
         let player = PlayerModel(
             request: request,
             client: client,
-            audioLanguages: prefs.audioLanguages,
+            audioLanguages: request.audioLanguages ?? prefs.audioLanguages,
             subtitleLanguages: prefs.subtitleLanguages,
             look: prefs.subtitleLook,
             speakers: prefs.speakers,
