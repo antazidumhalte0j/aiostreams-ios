@@ -32,7 +32,11 @@ jobs:
       # Only a manual run can turn them on; pushes, tags and releases build without them.
       HEIGHT_CHANNELS: ${{ inputs.height_channels && 'on' || 'off' }}
     steps:
+      # The whole history and its tags: the version comes from the v* tags, the build number from
+      # the commit count (scripts/make-ipa.sh).
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       # AetherEngine supports Xcode 27; 26.3 is its best-effort floor. Take the newest on the runner.
       - name: Select Xcode
@@ -79,5 +83,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A release's IPAs must carry its version.
+          built=$(cat build/version.txt)
+          if [ "$built" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "built $built for $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Unsigned IPAs. Sign them when you install them."
           gh release upload "$GITHUB_REF_NAME" build/AIOStreams.ipa build/AIOStreams-tvOS.ipa --clobber

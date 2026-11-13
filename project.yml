@@ -8,7 +8,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.2.0"
+    # Only for a build run from Xcode: scripts/make-ipa.sh sets both from the release tags.
+    MARKETING_VERSION: "0.2.7"
     CURRENT_PROJECT_VERSION: "1"
 packages:
   # AetherEngine 7.64.0 with TrueHD Atmos and DTS:X heights and Dolby Vision FEL turned on.

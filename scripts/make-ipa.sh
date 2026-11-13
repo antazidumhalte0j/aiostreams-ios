@@ -8,6 +8,11 @@
 #   scripts/make-ipa.sh tvos
 #   HEIGHT_CHANNELS=on scripts/make-ipa.sh   # with TrueHD Atmos and DTS:X height channels
 #
+# The version comes from the release tags: v0.2.7 on the commit built makes 0.2.7, and a commit
+# after it builds as 0.2.7 too, told apart by its build number, which is the commit count (it only
+# rises along main, and a rerun or a local build of the same commit gets the same one). APP_VERSION
+# and BUILD_NUMBER override them. A shallow clone has no count, so it needs BUILD_NUMBER.
+#
 # Height channels are off unless asked for: AetherEngine notes they may be subject to third-party
 # patent licensing, so public releases leave them out. Dolby Vision FEL (curve fold) is in both.
 #
@@ -17,6 +22,27 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$here"
 which="${1:-all}"
+
+# The release this commit is, else the last one it follows.
+if [ -z "${APP_VERSION:-}" ]; then
+  tag=$(git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null \
+    || git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+  APP_VERSION="${tag#v}"
+fi
+if [ -z "${BUILD_NUMBER:-}" ]; then
+  if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+    echo "a shallow clone can't count its commits: fetch the full history or set BUILD_NUMBER" >&2
+    exit 1
+  fi
+  BUILD_NUMBER=$(git rev-list --count HEAD)
+fi
+# What CFBundleShortVersionString and CFBundleVersion take: up to three numbers with dots.
+for value in "$APP_VERSION" "$BUILD_NUMBER"; do
+  [[ "$value" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || { echo "not a bundle version: '$value' (no v* tag found? set APP_VERSION)" >&2; exit 1; }
+done
+echo "version $APP_VERSION ($BUILD_NUMBER)"
+mkdir -p build
+echo "$APP_VERSION" > build/version.txt
 
 # The engine package to build with: the same module, with or without height channels.
 if [ "${HEIGHT_CHANNELS:-off}" = on ]; then
@@ -40,10 +66,20 @@ build() {
     -derivedDataPath "$derived" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
-    CODE_SIGN_IDENTITY=""
+    CODE_SIGN_IDENTITY="" \
+    MARKETING_VERSION="$APP_VERSION" \
+    CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 
   local app="$derived/Build/Products/$products/$scheme.app"
   [ -d "$app" ] || { echo "no app at $app" >&2; exit 1; }
+  # The packaged app must say the version it's released as.
+  local plist="$app/Info.plist" short number
+  short=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$plist")
+  number=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$plist")
+  if [ "$short" != "$APP_VERSION" ] || [ "$number" != "$BUILD_NUMBER" ]; then
+    echo "$scheme.app says $short ($number), expected $APP_VERSION ($BUILD_NUMBER)" >&2
+    exit 1
+  fi
   local staging="$here/build/ipa-$scheme"
   rm -rf "$staging" "$here/build/$ipa"
   mkdir -p "$staging/Payload"

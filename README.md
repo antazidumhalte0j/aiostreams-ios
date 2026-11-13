@@ -67,6 +67,8 @@ brew install xcodegen
 scripts/make-ipa.sh
 ```
 
+The app's version comes from the release tags: a build of the commit tagged `v0.2.8` is 0.2.8, and the build number is the commit count. Set `APP_VERSION` or `BUILD_NUMBER` to override them. The script needs the full history and tags (not a shallow clone).
+
 The IPA is unsigned. Sign it when you install it with AltStore, SideStore, Sideloadly, or your own developer certificate. With a free Apple ID, apps expire after 7 days and must be refreshed.
 
 To run it from Xcode instead, run `scripts/build-web.sh`, then `xcodegen generate`, open `AIOStreams.xcodeproj`, choose your team under Signing, and run it on a device.
