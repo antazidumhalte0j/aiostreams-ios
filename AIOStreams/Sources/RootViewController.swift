@@ -221,16 +221,13 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         case "licenses":
             bridge.send(AppInfo.licenses)
         case "diagnostics":
-            let text = [
-                "App: AIOStreams iOS \(AppInfo.version)",
-                "Device: \(AppInfo.deviceModel), iOS \(UIDevice.current.systemVersion)",
-                "Web: \(message["web"] as? String ?? "?")",
-                "Server: \(message["server"] as? String ?? "none")",
-                player.diagnostics,
-                "",
-                AppLog.recent,
-            ].joined(separator: "\n")
-            bridge.send(["type": "diagnostics", "text": text])
+            bridge.send(["type": "diagnostics", "text": diagnostics(web: message["web"] as? String, server: message["server"] as? String)])
+        case "share-diagnostics":
+            // Settings > iOS app > Open: the log and device details, to send wherever the person likes.
+            let share = UIActivityViewController(activityItems: [diagnostics(web: nil, server: nil)], applicationActivities: nil)
+            share.popoverPresentationController?.sourceView = view
+            share.popoverPresentationController?.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+            present(share, animated: true)
         case "crash-report":
             bridge.send(["type": "crash-report"])
         case "links-ready":
@@ -288,6 +285,20 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         setNeedsUpdateOfHomeIndicatorAutoHidden()
         setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
         bridge.send(["type": "fullscreen", "value": on])
+    }
+
+    /// The app, the device and its screen, the player's state and the recent log, for a problem report.
+    private func diagnostics(web: String?, server: String?) -> String {
+        [
+            "App: AIOStreams iOS \(AppInfo.version)",
+            "Device: \(AppInfo.deviceModel), iOS \(UIDevice.current.systemVersion)",
+            "Screen: \(view.bounds.size), margins \(view.safeAreaInsets)",
+            "Web: \(web ?? "?")",
+            "Server: \(server ?? "none")",
+            player.diagnostics,
+            "",
+            AppLog.recent,
+        ].joined(separator: "\n")
     }
 
     private func saveFile(name: String, text: String) {

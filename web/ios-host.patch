@@ -1,5 +1,5 @@
 diff --git a/packages/web/src/app/settings/about.tsx b/packages/web/src/app/settings/about.tsx
-index e41938f9..d8ffaba2 100644
+index e41938f97..d8ffaba2e 100644
 --- a/packages/web/src/app/settings/about.tsx
 +++ b/packages/web/src/app/settings/about.tsx
 @@ -59,7 +59,11 @@ export function AboutSection() {
@@ -16,7 +16,7 @@ index e41938f9..d8ffaba2 100644
            ],
            ...(shell.player && !shell.mpv
 diff --git a/packages/web/src/lib/hosts/shell/bridge.ts b/packages/web/src/lib/hosts/shell/bridge.ts
-index 39f60cb8..f18c1eb0 100644
+index 39f60cb8d..f18c1eb0e 100644
 --- a/packages/web/src/lib/hosts/shell/bridge.ts
 +++ b/packages/web/src/lib/hosts/shell/bridge.ts
 @@ -188,7 +188,7 @@ export type MediaKey =
@@ -29,7 +29,7 @@ index 39f60cb8..f18c1eb0 100644
    /** The Android app on a TV. */
    tv?: boolean;
 diff --git a/packages/web/src/lib/hosts/shell/index.ts b/packages/web/src/lib/hosts/shell/index.ts
-index 0c2fe1b2..6de9d177 100644
+index 0c2fe1b23..6de9d1775 100644
 --- a/packages/web/src/lib/hosts/shell/index.ts
 +++ b/packages/web/src/lib/hosts/shell/index.ts
 @@ -10,6 +10,7 @@ import type { Host } from '..';
@@ -63,10 +63,10 @@ index 0c2fe1b2..6de9d177 100644
  }
 diff --git a/packages/web/src/lib/hosts/shell/ios.ts b/packages/web/src/lib/hosts/shell/ios.ts
 new file mode 100644
-index 00000000..4f5fab89
+index 000000000..a03b08aa0
 --- /dev/null
 +++ b/packages/web/src/lib/hosts/shell/ios.ts
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,39 @@
 +import type { Host } from '..';
 +import { appBridge } from './bridge';
 +import { appEngine } from './player';
@@ -92,6 +92,13 @@ index 00000000..4f5fab89
 +  resolveYouTube,
 +  // The app's queue, which keeps going in the background and while the page reloads.
 +  downloads: shellDownloads,
++  // A tab of its own for the app's diagnostics, which Open shares from the system's share sheet.
++  settings: {
++    label: 'iOS app',
++    description: 'Diagnostics for a problem report',
++    help: "Shares the app's log and device details, for a problem report.",
++    open: () => appBridge()?.send({ type: 'share-diagnostics' }),
++  },
 +  fullscreen: {
 +    active: () => fullscreen,
 +    set: (on) => appBridge()?.send({ type: 'fullscreen', value: on }),
@@ -100,7 +107,7 @@ index 00000000..4f5fab89
 +    appBridge()?.send({ type: 'save-file', name, mime: type, text }),
 +};
 diff --git a/packages/web/src/lib/jellyfin/client.ts b/packages/web/src/lib/jellyfin/client.ts
-index 03c7dded..030e75e5 100644
+index 03c7dded2..030e75e59 100644
 --- a/packages/web/src/lib/jellyfin/client.ts
 +++ b/packages/web/src/lib/jellyfin/client.ts
 @@ -28,6 +28,7 @@ function clientName(): string {

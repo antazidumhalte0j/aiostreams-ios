@@ -50,6 +50,7 @@ enum LastVersions {
 struct PlayFlow: ViewModifier {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var prefs: Preferences
+    @EnvironmentObject private var wash: ArtWash
     @Binding var choice: VersionChoice?
     var finished: () -> Void = {}
 
@@ -112,6 +113,7 @@ struct PlayFlow: ViewModifier {
                 }
                 .environmentObject(session)
                 .environmentObject(prefs)
+                .environmentObject(wash)
                 // The page stays in sight, dimmed, behind the panel.
                 .presentationBackground(.clear)
             }

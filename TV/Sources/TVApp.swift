@@ -5,6 +5,7 @@ import SwiftUI
 struct AIOStreamsTVApp: App {
     @StateObject private var session = Session()
     @StateObject private var prefs = Preferences()
+    @StateObject private var wash = ArtWash()
 
     init() {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
@@ -24,6 +25,7 @@ struct AIOStreamsTVApp: App {
             .id(prefs.themeKey)
             .environmentObject(session)
             .environmentObject(prefs)
+            .environmentObject(wash)
             .preferredColorScheme(.dark)
             // Screenshot mode only: the demo server's sign-in.
             .task { await DemoMode.start(session) }

@@ -46,6 +46,8 @@ struct VersionsView: View {
         .foregroundStyle(.white)
         .task { await load(refresh: false) }
         .onExitCommand { dismiss() }
+        // The background from artwork follows the title being chosen for.
+        .washed(by: choice.item)
     }
 
     /// The title's art, faded into the panel behind its header.

@@ -76,7 +76,8 @@ struct MainView: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            Theme.background.ignoresSafeArea()
+            // The page colour, or the art of the title you're on (Background from artwork).
+            WashBackground()
 
             NavigationStack(path: path(place)) {
                 page(place)
@@ -98,12 +99,17 @@ struct MainView: View {
                 Task { choice = await playChoice(for: item, session: session, mode: mode) }
             })
             .padding(.leading, Theme.px(80))
+            .mask { pageEdge }
 
-            // The rail's own column, which rows scrolled under it disappear beneath.
-            Theme.background
-                .frame(width: Theme.px(80))
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+            // The rail's own column, which rows scrolled under it disappear beneath. Over the
+            // artwork there's none, as in the web app: the icons sit on the art, and the page
+            // fades out before reaching them instead (pageEdge).
+            if !prefs.flag("artBackground", false) {
+                Theme.background
+                    .frame(width: Theme.px(80))
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
 
             // The open rail's shade over the page beside it: solid under the names, so the page's
             // own text can't show through them, then fading out across the page.
@@ -153,6 +159,22 @@ struct MainView: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: exitArmed)
+    }
+
+    /// Over the artwork, the page fades out across the rail's edge, so rows scrolled left dissolve
+    /// before the icons rather than passing under them; elsewhere the rail's column covers them.
+    @ViewBuilder private var pageEdge: some View {
+        if prefs.flag("artBackground", false) {
+            HStack(spacing: 0) {
+                Color.clear.frame(width: Theme.px(40))
+                LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                    .frame(width: Theme.px(40))
+                Color.black
+            }
+            .ignoresSafeArea()
+        } else {
+            Color.black.ignoresSafeArea()
+        }
     }
 
     @ViewBuilder private func page(_ place: Place) -> some View {

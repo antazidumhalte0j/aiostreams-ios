@@ -197,6 +197,18 @@ final class Preferences: ObservableObject {
         didSet { UserDefaults.standard.set(animeUpscaling, forKey: "video.animeUpscaling") }
     }
 
+    /// Card previews: focus resting on a poster in a row opens it out, with its trailer. Kept on this
+    /// Apple TV, as the web app keeps its own on each device, and on by default on a TV as there.
+    @Published var cardPreviews: Bool = UserDefaults.standard.object(forKey: "interface.cardPreviews") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(cardPreviews, forKey: "interface.cardPreviews") }
+    }
+    @Published var cardTrailers: Bool = UserDefaults.standard.object(forKey: "interface.cardTrailers") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(cardTrailers, forKey: "interface.cardTrailers") }
+    }
+    @Published var trailerSound: Bool = UserDefaults.standard.object(forKey: "interface.trailerSound") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(trailerSound, forKey: "interface.trailerSound") }
+    }
+
     /// Where the app opens, as the web app's start page setting: kept on this Apple TV.
     @Published var startPage: String = UserDefaults.standard.string(forKey: "app.startPage") ?? "home" {
         didSet { UserDefaults.standard.set(startPage, forKey: "app.startPage") }
@@ -342,8 +354,8 @@ struct SettingsView: View {
                                      ("Pink", "#ec4899"), ("Violet", "#8b5cf6")])
                     toggle("Background from artwork", key: "artBackground", fallback: false)
                     synced("Background", key: "backgroundColor", fallback: "",
-                           options: [("Default", ""), ("Black", "#000000"), ("Charcoal", "#18181b"), ("Slate", "#0f172a"),
-                                     ("Navy", "#0b1026")])
+                           options: [("Default", ""), ("Black", "#000000"), ("Charcoal", "#1c1c1f"), ("Slate", "#1e2836"),
+                                     ("Navy", "#0a1846"), ("Plum", "#24102e"), ("Forest", "#0c2018"), ("Maroon", "#2a0c12")])
                 }
                 section("Player controls", note: "Kept on this Apple TV.") {
                     row("Skip step", value: "\(prefs.seekStep) seconds") {
@@ -411,6 +423,11 @@ struct SettingsView: View {
                         ) { prefs.startPage = $0 }
                     }
                     toggle("Merge continue watching and next up", key: "mergeNextUp", fallback: false)
+                    row("Card previews", value: prefs.cardPreviews ? "On" : "Off") { prefs.cardPreviews.toggle() }
+                    if prefs.cardPreviews {
+                        row("Trailers in card previews", value: prefs.cardTrailers ? "On" : "Off") { prefs.cardTrailers.toggle() }
+                        row("Trailer sound", value: prefs.trailerSound ? "On" : "Off") { prefs.trailerSound.toggle() }
+                    }
                     toggle("Combine movie and show results", key: "combineSearch", fallback: false)
                     toggle("Blur episodes not started", key: "blurSpoilers", fallback: false)
                     synced("Hero", key: "heroMode", fallback: "rotate",

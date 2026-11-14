@@ -54,14 +54,11 @@ final class FullBleedWebView: WKWebView {
 
     override var safeAreaInsets: UIEdgeInsets {
         var insets = super.safeAreaInsets
-        guard let window, let bar = window.windowScene?.statusBarManager?.statusBarFrame,
-              bar.width > 0, bar.height > bar.width else { return insets }
-        // The status column's side, in this view's terms, and how far it reaches in.
-        let place = convert(bar, from: window.coordinateSpace)
-        if place.midX > bounds.midX {
-            insets.right = max(0, insets.right - max(0, bounds.maxX - place.minX))
+        guard let column = currentColumn else { return insets }
+        if column.side == "right" {
+            insets.right = max(0, insets.right - column.width)
         } else {
-            insets.left = max(0, insets.left - max(0, place.maxX - bounds.minX))
+            insets.left = max(0, insets.left - column.width)
         }
         return insets
     }
@@ -70,7 +67,8 @@ final class FullBleedWebView: WKWebView {
     /// device whose screen is new to the app.
     private func note(_ given: UIEdgeInsets) {
         let bar = window?.windowScene?.statusBarManager?.statusBarFrame ?? .zero
-        let line = "size \(bounds.size), status bar \(bar.integral), margins \(super.safeAreaInsets) given as \(given)"
+        let found = currentColumn.map { "\($0.side) \(Int($0.width))" } ?? "none"
+        let line = "size \(bounds.size), status bar \(bar.integral), margins \(super.safeAreaInsets), column \(found), given as \(given)"
         guard line != lastLogged else { return }
         lastLogged = line
         AppLog.info("layout", line)
@@ -89,14 +87,21 @@ final class FullBleedWebView: WKWebView {
         if !first { safeAreaInsetsDidChange() }
     }
 
-    /// Where the status column is now: a vertical status bar at one side of this view.
+    /// Where the status column is now, and how far it reaches in. A vertical status bar at one side,
+    /// where iOS reports it so; else a margin on one side far wider than the other's. A notched iPhone
+    /// turned sideways has the same margin on both sides, so it never counts.
     private var currentColumn: (side: String, width: CGFloat)? {
-        guard let window, let bar = window.windowScene?.statusBarManager?.statusBarFrame,
-              bar.width > 0, bar.height > bar.width else { return nil }
-        let place = convert(bar, from: window.coordinateSpace)
-        return place.midX > bounds.midX
-            ? ("right", max(0, bounds.maxX - place.minX))
-            : ("left", max(0, place.maxX - bounds.minX))
+        if let window, let bar = window.windowScene?.statusBarManager?.statusBarFrame,
+           bar.width > 0, bar.height > bar.width {
+            let place = convert(bar, from: window.coordinateSpace)
+            return place.midX > bounds.midX
+                ? ("right", max(0, bounds.maxX - place.minX))
+                : ("left", max(0, place.maxX - bounds.minX))
+        }
+        let margins = super.safeAreaInsets
+        let difference = margins.right - margins.left
+        guard abs(difference) > 20 else { return nil }
+        return difference > 0 ? ("right", difference) : ("left", -difference)
     }
 
     private func updateColumn() {
@@ -117,5 +122,25 @@ final class FullBleedWebView: WKWebView {
                 + "document.documentElement.style.removeProperty('--status-column-width');"
         }
         evaluateJavaScript(script)
+        probe()
+    }
+
+    /// Logs the side margins the page actually has (its CSS `env(safe-area-inset-*)`), which tell
+    /// whether WebKit followed the margins given it.
+    func probe() {
+        let measure = """
+        (() => {
+          const probe = document.createElement('div');
+          probe.style.cssText = 'position:fixed;visibility:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)';
+          document.documentElement.appendChild(probe);
+          const style = getComputedStyle(probe);
+          const read = `page margins left ${style.paddingLeft}, right ${style.paddingRight}, width ${innerWidth}`;
+          probe.remove();
+          return read;
+        })()
+        """
+        evaluateJavaScript(measure) { result, _ in
+            if let read = result as? String { AppLog.info("layout", read) }
+        }
     }
 }

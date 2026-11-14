@@ -98,7 +98,8 @@ struct ItemRow: View {
             ScrollView(.horizontal) {
                 LazyHStack(alignment: .top, spacing: Theme.px(16)) {
                     ForEach(row.items) { item in
-                        PosterLink(item: item, wide: row.wide)
+                        // Posters in a row open into a preview; a grid's would push its columns out.
+                        PosterLink(item: item, wide: row.wide, previews: !row.wide)
                     }
                     // The whole library, from the end of its row.
                     if let library = row.library {
@@ -185,6 +186,9 @@ struct PosterLink: View {
     @EnvironmentObject private var prefs: Preferences
     let item: Item
     var wide: Bool = false
+    /// Opens into a card preview when focus rests on it (Settings > Interface > Card previews).
+    var previews = false
+    @State private var opened = false
 
     /// A poster's width at the web app's Poster size: small, medium or large.
     static func width(_ size: String) -> CGFloat {
@@ -194,7 +198,14 @@ struct PosterLink: View {
     private var stillWide: Bool { wide || item.isEpisode }
     private var size: CGSize {
         let width = Self.width(prefs.posterSize)
-        return stillWide ? WideCard.size : CGSize(width: width, height: width * 1.5)
+        let base = stillWide ? WideCard.size : CGSize(width: width, height: width * 1.5)
+        // Opened, the card is as tall as the poster and as wide as a 16:9 picture that tall.
+        return opened ? CGSize(width: base.height * 16 / 9, height: base.height) : base
+    }
+
+    /// Movies, shows and episodes preview; a collection's card already shows all it has.
+    private var previewable: Bool {
+        previews && prefs.cardPreviews && (item.type == "Movie" || item.isSeries || item.isEpisode)
     }
 
     private var imageURL: URL? {
@@ -206,8 +217,12 @@ struct PosterLink: View {
         VStack(alignment: .leading, spacing: Theme.px(8)) {
             NavigationLink(value: item.isFolder ? Route.library(item) : Route.item(item)) {
                 ZStack(alignment: .topTrailing) {
-                    RemoteImage(url: imageURL)
-                        .frame(width: size.width, height: size.height)
+                    if opened {
+                        CardPreview(item: item, size: size)
+                    } else {
+                        RemoteImage(url: imageURL)
+                            .frame(width: size.width, height: size.height)
+                    }
                     if item.isSeries, let left = item.userData?.unplayedItemCount, left > 0, item.userData?.played != true {
                         Text(String(left))
                             .font(Theme.font(Theme.xs, .semibold))
@@ -239,7 +254,17 @@ struct PosterLink: View {
             }
             .buttonStyle(CardStyle())
             .focused($focused)
-            .onChange(of: focused) { _, on in if on { cardFocused(item) } }
+            .onChange(of: focused) { _, on in
+                if on { cardFocused(item) }
+                if !on { withAnimation(.easeOut(duration: 0.25)) { opened = false } }
+            }
+            // Focus resting on it opens it out, as the web app's TV layout does.
+            .task(id: focused) {
+                guard focused, previewable else { return }
+                try? await Task.sleep(for: CardPreviewTiming.rest)
+                guard !Task.isCancelled, focused else { return }
+                withAnimation(.easeOut(duration: 0.3)) { opened = true }
+            }
             .itemMenu(item)
             // What the web app's Poster text asks for: the title, the year, both or neither.
             let lines = stillWide ? ["title", "year"] : prefs.posterLines
