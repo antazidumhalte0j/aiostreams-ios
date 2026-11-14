@@ -103,11 +103,11 @@ enum UnattendedPlays {
 }
 
 private enum PlayerFocus: Hashable {
-    case surface, bar, play, back, forward, tracks, chapters, speed, fit, skip, next, keepWatching, stop, sync, episodes
+    case surface, bar, play, back, forward, tracks, audio, chapters, speed, fit, skip, next, keepWatching, stop, sync, episodes
 }
 
 private enum PlayerPanel: Hashable {
-    case tracks, chapters, speed, sync, episodes
+    case tracks, audio, chapters, speed, sync, episodes
 }
 
 private struct PlayerChrome: View {
@@ -468,6 +468,11 @@ private struct PlayerChrome: View {
                         .buttonStyle(ControlIconStyle())
                         .focused($focus, equals: .episodes)
                 }
+                // Audio and subtitles each have their own button, so a long subtitle list doesn't
+                // bury the audio tracks.
+                Button { open(.audio) } label: { Image(systemName: "speaker.wave.2") }
+                    .buttonStyle(ControlIconStyle())
+                    .focused($focus, equals: .audio)
                 Button { open(.tracks) } label: { Image(systemName: "captions.bubble") }
                     .buttonStyle(ControlIconStyle())
                     .focused($focus, equals: .tracks)
@@ -762,6 +767,7 @@ private struct PlayerChrome: View {
         panel = nil
         switch from {
         case .tracks: focus = .tracks
+        case .audio: focus = .audio
         case .chapters: focus = .chapters
         case .speed: focus = .speed
         case .sync: focus = .sync
@@ -897,9 +903,19 @@ private struct PlayerPanelView: View {
                             row(label(track), on: track.id == model.activeSubtitle) { model.selectSubtitle(track.id) }
                         }
                     }
+                case .audio:
                     group("Audio") {
+                        if model.audioTracks.isEmpty {
+                            Text("This version has one audio track.")
+                                .font(Theme.font(Theme.sm))
+                                .foregroundStyle(Theme.gray400)
+                                .padding(.horizontal, Theme.px(12))
+                                .focusable()
+                        }
                         ForEach(model.audioTracks) { track in
-                            row(label(track), on: track.id == model.activeAudio) { model.selectAudio(track.id) }
+                            row(label(track), detail: audioDetail(track), on: track.id == model.activeAudio) {
+                                model.selectAudio(track.id)
+                            }
                         }
                     }
                 case .chapters:
@@ -1009,6 +1025,27 @@ private struct PlayerPanelView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(PanelRowStyle())
+    }
+
+    /// What tells audio tracks apart besides their language: the format, channels, Atmos or DTS:X,
+    /// and commentary or audio description.
+    private func audioDetail(_ track: TrackInfo) -> String? {
+        let codecs = ["truehd": "TrueHD", "eac3": "DD+", "ac3": "DD", "dts": "DTS",
+                      "aac": "AAC", "flac": "FLAC", "opus": "Opus", "mp3": "MP3", "pcm_s16le": "PCM", "pcm_s24le": "PCM"]
+        var parts: [String] = []
+        if let codec = codecs[track.codec.lowercased()] { parts.append(codec) }
+        if track.isAtmos { parts.append("Atmos") } else if track.isDTSX { parts.append("DTS:X") }
+        switch track.channels {
+        case 1: parts.append("Mono")
+        case 2: parts.append("Stereo")
+        case 6: parts.append("5.1")
+        case 8: parts.append("7.1")
+        case let count where count > 2: parts.append("\(count) ch")
+        default: break
+        }
+        if track.isCommentary { parts.append("Commentary") }
+        if track.isVisualImpaired { parts.append("Audio description") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func label(_ track: TrackInfo) -> String {

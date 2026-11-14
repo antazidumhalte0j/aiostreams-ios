@@ -109,7 +109,7 @@ tvOS has no WebKit, so the web app can't run there. The Apple TV app (`TV/`) is 
 - **Trailers:** a title with a trailer gets a Trailer button. YouTube trailers play through the same lookup the iPhone, Android and desktop apps use, in the title's original language where the account's audio language is Original. Watching one doesn't change the title's progress.
 - **Live TV:** on a server with channels, Live TV appears in the sidebar. Browse channels by group (Favourites, Recent, All channels and the server's genres) as a list of what's on now and next, or as a guide of the coming six hours. Channels play live, with no seeking.
 - **Versions:** the streams your addons found, in the order the server sorted them. Picking one also fetches its subtitles from your subtitle addons.
-- **Player:** play/pause, click left or right to skip 10 s, hold them to fast forward or rewind (faster the longer you hold), and press down for audio and subtitles. While paused, with the bar selected, swipe across the remote to move along it. Playback resumes where you left off and reports progress to the server.
+- **Player:** play/pause, click left or right to skip 10 s, hold them to fast forward or rewind (faster the longer you hold), and press down for the controls, with their own buttons for audio and for subtitles. While paused, with the bar selected, swipe across the remote to move along it. Playback resumes where you left off and reports progress to the server.
 
 It shares `Support.swift` and `SubtitleOverlayView.swift` with the iOS app. The build makes `AIOStreams-tvOS.ipa` alongside the iPhone one. AltStore and SideStore don't install on Apple TV. Use Xcode with a paired Apple TV, or another signing tool that supports tvOS.
 
