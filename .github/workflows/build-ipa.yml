@@ -93,3 +93,9 @@ jobs:
           fi
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Unsigned IPAs. Sign them when you install them."
           gh release upload "$GITHUB_REF_NAME" build/AIOStreams.ipa build/AIOStreams-tvOS.ipa --clobber
+          # The AltStore / SideStore source, every release's IPA in it, on each release so
+          # releases/latest/download/altstore.json is always the newest.
+          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate > build/releases.json
+          python3 scripts/altstore-source.py build/releases.json "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" \
+            build/AIOStreams.ipa build/altstore.json
+          gh release upload "$GITHUB_REF_NAME" build/altstore.json --clobber
