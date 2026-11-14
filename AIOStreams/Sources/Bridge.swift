@@ -78,7 +78,8 @@ final class Bridge: NSObject {
             protocol: 2,
             version: \(literal(AppInfo.version)),
             platform: 'ios',
-            miniPlayer: false,
+            // Draws its video small where the page says (player-frame), for the mini player.
+            miniPlayer: true,
             // Picture in Picture, which shows the player's button for it.
             pip: true,
             hours24: \(Self.uses24HourClock ? "true" : "false"),

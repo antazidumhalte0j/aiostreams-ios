@@ -116,7 +116,6 @@ Not in the Apple TV app yet: Live TV reminders, and playing earlier programmes f
 
 ## Not done yet
 
-- **Mini player.** The bridge reports `miniPlayer: false`. Picture in Picture works: from the player's button, or by leaving the app with Start PiP Automatically on.
 - **Stats overlay.** mpv's stats pages have no AetherEngine equivalent here.
 - **Desktop-only settings.** Cards such as mpv config, video output and audio devices may still show; the app answers each with an empty list.
 

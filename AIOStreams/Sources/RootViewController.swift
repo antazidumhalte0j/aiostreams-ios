@@ -5,10 +5,14 @@ import WebKit
 
 /// The video beneath, the subtitles over it, and the page on top drawing every screen and the player's controls.
 @MainActor
-final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
+final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, UIGestureRecognizerDelegate {
     private let engine: AetherEngine
     private let videoView = AetherPlayerView()
     private let overlay = SubtitleOverlayView()
+    /// The video and subtitles, full screen or as the page's mini player.
+    private lazy var stage = VideoStage(video: videoView, subtitles: overlay)
+    /// Where a drag of the small video started.
+    private var dragFrom: CGPoint?
     private let thumbnails = ThumbnailStore()
     private let bridge = Bridge()
     private var webView: WKWebView!
@@ -36,9 +40,11 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         let root = UIView()
         root.backgroundColor = .black
 
-        videoView.isHidden = true
         engine.bind(view: videoView)
         overlay.isHidden = true
+        stage.view.frame = root.bounds
+        stage.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        root.addSubview(stage.view)
 
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(WebAssets(thumbnails: thumbnails), forURLScheme: WebAssets.scheme)
@@ -70,7 +76,7 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         self.webView = webView
         bridge.webView = webView
 
-        for view in [videoView, overlay, webView] as [UIView] {
+        for view in [webView] as [UIView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(view)
             NSLayoutConstraint.activate([
@@ -92,10 +98,15 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         player = PlayerChannel(engine: engine, overlay: overlay, thumbnails: thumbnails) { [weak self] message in
             self?.bridge.send(message)
         }
+        stage.web = webView
         player.showVideo = { [weak self] shown in
-            self?.videoView.isHidden = !shown
+            self?.stage.show(shown)
             self?.overlay.isHidden = !shown
         }
+        // Drags of the small video, which the page can't follow over the app's own video.
+        let drag = UIPanGestureRecognizer(target: self, action: #selector(dragMiniPlayer(_:)))
+        drag.delegate = self
+        view.addGestureRecognizer(drag)
         pictureInPicture = PictureInPicture(engine: engine, channel: player) { [weak self] message in
             self?.bridge.send(message)
         }
@@ -120,6 +131,40 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         webView.load(URLRequest(url: DemoMode.startURL ?? WebAssets.startURL))
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // A turn or resize moves the page's frame with it.
+        stage.refresh()
+    }
+
+    // MARK: - The mini player's drag
+
+    /// Only a drag that starts on the small video, where the page lets it be dragged.
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer is UIPanGestureRecognizer, gestureRecognizer.view === view else { return true }
+        guard let rect = stage.draggableRect else { return false }
+        return rect.contains(gestureRecognizer.location(in: webView))
+    }
+
+    /// The page reads where the video was let go and docks it in the nearest corner.
+    @objc private func dragMiniPlayer(_ pan: UIPanGestureRecognizer) {
+        switch pan.state {
+        case .began:
+            dragFrom = stage.draggableRect?.origin
+            bridge.send(["type": "player-frame", "event": "grabbed"])
+        case .changed, .ended, .cancelled:
+            guard let start = dragFrom else { return }
+            let moved = pan.translation(in: webView)
+            let origin = CGPoint(x: start.x + moved.x, y: start.y + moved.y)
+            stage.drag(to: origin)
+            let done = pan.state != .changed
+            bridge.send(["type": "player-frame", "event": done ? "moved" : "moving", "x": origin.x, "y": origin.y])
+            if done { dragFrom = nil }
+        default:
+            break
+        }
+    }
+
     override var prefersStatusBarHidden: Bool { fullscreen }
     override var prefersHomeIndicatorAutoHidden: Bool { fullscreen }
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
@@ -140,6 +185,9 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
                 "ffmpeg": NSNull(),
                 "player": AppInfo.player,
             ])
+        case "player-frame":
+            // The mini player: where the page wants the video, or nil for full screen.
+            stage.place(VideoFrame.from(message))
         case "splash-shown":
             // The page shows the same logo now.
             launchLogo?.lift()

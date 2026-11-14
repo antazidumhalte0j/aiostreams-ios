@@ -274,7 +274,7 @@ final class PlayerChannel {
                 guard !Task.isCancelled, current == self.generation else { return }
                 self.send(["type": "player-subtitle-lines", "track": track, "lines": tracks?[track] ?? []])
             }
-        case "player-skips", "player-controls", "player-stats-overlay", "player-frame", "player-unqueue":
+        case "player-skips", "player-controls", "player-stats-overlay", "player-unqueue":
             break
         case "player-settings":
             if let delay = JSON.number(message["audioDelayMs"]) { engine.setAudioDelay(delay / 1000) }
