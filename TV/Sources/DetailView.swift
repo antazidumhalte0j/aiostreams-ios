@@ -423,8 +423,13 @@ struct SeasonPillStyle: ButtonStyle {
 /// and its synopsis.
 struct EpisodeCard: View {
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
+    @FocusState private var focused: Bool
     let episode: Item
     let action: () -> Void
+
+    /// Spoiler blur: an episode not started, until it has focus.
+    private var hidden: Bool { prefs.blurSpoilers && episode.unstarted && !focused }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.px(8)) {
@@ -432,6 +437,8 @@ struct EpisodeCard: View {
                 ZStack(alignment: .bottom) {
                     RemoteImage(url: session.client?.poster(episode, height: Int(WideCard.size.height * 2)))
                         .frame(width: WideCard.size.width, height: WideCard.size.height)
+                        .blur(radius: hidden ? Theme.px(12) : 0, opaque: true)
+                        .animation(.easeOut(duration: 0.3), value: hidden)
                     if let progress = episode.userData?.playedPercentage, progress > 0, episode.userData?.played != true {
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
@@ -454,11 +461,14 @@ struct EpisodeCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.px(12), style: .continuous))
             }
             .buttonStyle(CardStyle(radius: Theme.px(12)))
+            .focused($focused)
             .itemMenu(episode, onPage: true)
             VStack(alignment: .leading, spacing: Theme.px(3)) {
                 Text([episode.indexNumber.map { "\($0)." }, episode.name].compactMap { $0 }.joined(separator: " "))
                     .font(Theme.font(15, .semibold))
                     .lineLimit(1)
+                    .blur(radius: hidden ? Theme.px(5) : 0)
+                    .animation(.easeOut(duration: 0.3), value: hidden)
                 HStack(spacing: Theme.px(8)) {
                     if let runtime = episode.runtimeText { Text(runtime) }
                     if let score = episode.communityRating, score > 0 {
@@ -476,6 +486,8 @@ struct EpisodeCard: View {
                         .font(Theme.font(13))
                         .foregroundStyle(Theme.gray400)
                         .lineLimit(3)
+                        .blur(radius: hidden ? Theme.px(5) : 0)
+                        .animation(.easeOut(duration: 0.3), value: hidden)
                 }
             }
             .padding(.horizontal, Theme.px(2))

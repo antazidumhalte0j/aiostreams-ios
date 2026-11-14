@@ -16,6 +16,9 @@ struct ItemExtension: Decodable, Hashable {
     var genreRequired: Bool?
     /// When the show an episode belongs to was last watched, which the server adds to Next up.
     var showWatchedAt: String?
+    /// Marks a server with the fillers feature puts on an episode, which playing on can skip.
+    var filler: Bool?
+    var recap: Bool?
 }
 
 struct Item: Decodable, Identifiable, Hashable {
@@ -71,6 +74,9 @@ struct Item: Decodable, Identifiable, Hashable {
     var isSeries: Bool { type == "Series" }
     var isFolder: Bool { type == "CollectionFolder" || type == "BoxSet" || type == "Folder" }
     var isChannel: Bool { type == "TvChannel" }
+
+    /// An episode not started, which the web app's spoiler blur hides until it has focus.
+    var unstarted: Bool { isEpisode && userData?.played != true && (userData?.playbackPositionTicks ?? 0) == 0 }
 
     /// An anime database's id marks anime, as the web app tells (lib/playback/upscaling.ts). The
     /// decoder lowers the first letter of these keys, so they're matched without case.
@@ -199,6 +205,54 @@ struct MediaSegment: Decodable, Hashable, Identifiable {
     var end: Double { Double(endTicks) / 10_000_000 }
 
     private enum CodingKeys: String, CodingKey { case type, startTicks, endTicks }
+
+    init(type: String, start: Double, end: Double) {
+        self.type = type
+        startTicks = Int64(start * 10_000_000)
+        endTicks = Int64(end * 10_000_000)
+    }
+
+    // A whole chapter title, or the words before its first punctuation, lowercased and stripped of
+    // numbers, names a kind (upstream lib/playback/chapters.ts): "OP 2" and "OP - Song" match, but
+    // "The Opening of the Gates" doesn't.
+    private static let kinds: [(String, String)] = [
+        ("Intro", #"^(op|opening|opening (credits|song|theme)|title sequence|main titles?)$"#),
+        ("Outro", #"^(ed|ending|ending (credits|song|theme)|end credits|credits|closing credits|outro)$"#),
+        ("Recap", #"^(recap|previously|previously on)$"#),
+        ("Preview", #"^(preview|next episode preview|next episode|next time)$"#),
+    ]
+    /// Names the cold open in some releases, so it counts only when nothing names the opening.
+    private static let looseIntro = #"^(intro|introduction)$"#
+    /// Past this a named chapter also holds the programme, except credits, which run long on films.
+    private static let namedMax: Double = 180
+
+    private static func plain(_ title: String) -> String {
+        title.lowercased()
+            .replacingOccurrences(of: #"[^a-z]+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func names(_ title: String, _ pattern: String) -> Bool {
+        let lead = title.components(separatedBy: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '’").inverted).first ?? title
+        return [plain(title), plain(lead)].contains { $0.range(of: pattern, options: .regularExpression) != nil }
+    }
+
+    private static func kind(_ title: String) -> String? {
+        kinds.first { names(title, $0.1) }?.0
+    }
+
+    /// The segments a file's chapters name: each chapter runs until the next starts.
+    static func named(chapters: [(title: String, start: Double)], duration: Double) -> [MediaSegment] {
+        let sorted = chapters.sorted { $0.start < $1.start }
+        let hasOpening = sorted.contains { kind($0.title) == "Intro" }
+        return sorted.enumerated().compactMap { index, chapter in
+            let type = kind(chapter.title) ?? (!hasOpening && names(chapter.title, looseIntro) ? "Intro" : nil)
+            let end = index + 1 < sorted.count ? sorted[index + 1].start : duration
+            guard let type, end > chapter.start else { return nil }
+            if type != "Outro" && end - chapter.start > namedMax { return nil }
+            return MediaSegment(type: type, start: chapter.start, end: end)
+        }
+    }
 
     /// Jellyfin's types, which a server may send by name or by number.
     private static let numbered = [1: "Commercial", 2: "Preview", 3: "Recap", 4: "Outro", 5: "Intro"]

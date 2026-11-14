@@ -85,11 +85,14 @@ final class PlayerModel: ObservableObject {
     private let subtitleLanguages: [String]
     private let speakers: SpatialSpeakerLayout?
     private let animeUpscaling: Bool
+    private let rules: PlayerRules
+    /// The server's segments, before the file's chapters are weighed against them.
+    private var serverSegments: [MediaSegment] = []
     private let userId: String?
 
     init(request: PlayRequest, client: JellyfinClient, audioLanguages: [String] = [], subtitleLanguages: [String] = [],
          look: SubtitleLook = SubtitleLook(), speakers: SpatialSpeakerLayout? = .l714, animeUpscaling: Bool = false,
-         userId: String? = nil) {
+         userId: String? = nil, rules: PlayerRules = PlayerRules()) {
         self.request = request
         isLive = request.source.isInfiniteStream == true || request.item.isChannel
         self.client = client
@@ -97,6 +100,7 @@ final class PlayerModel: ObservableObject {
         self.subtitleLanguages = subtitleLanguages
         self.speakers = speakers
         self.animeUpscaling = animeUpscaling
+        self.rules = rules
         self.userId = userId
         engine = SharedEngine.engine
         overlay = SubtitleOverlayView()
@@ -127,8 +131,15 @@ final class PlayerModel: ObservableObject {
             .throttle(for: .milliseconds(250), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] in self?.position = $0 }
             .store(in: &bag)
-        engine.$duration.sink { [weak self] in self?.duration = $0 }.store(in: &bag)
-        engine.$mediaChapters.sink { [weak self] in self?.chapters = $0 }.store(in: &bag)
+        engine.$duration.sink { [weak self] in
+            self?.duration = $0
+            // The last chapter runs to the end, which a later duration moves.
+            self?.combineSegments()
+        }.store(in: &bag)
+        engine.$mediaChapters.sink { [weak self] in
+            self?.chapters = $0
+            self?.combineSegments()
+        }.store(in: &bag)
         engine.clock.$bufferedPosition
             .throttle(for: .seconds(1), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] in self?.buffered = $0 }
@@ -208,14 +219,47 @@ final class PlayerModel: ObservableObject {
             overview = full?.items?.first?.overview
         }
         let found: SegmentsResult? = try? await client.get("/MediaSegments/\(item.id)", ["userId": userId])
-        segments = (found?.items ?? []).filter { $0.end > $0.start }.sorted { $0.start < $1.start }
+        serverSegments = (found?.items ?? []).filter { $0.end > $0.start }
+        combineSegments()
         // The episode after this one, as the web app finds it; one not yet out isn't offered.
         guard item.isEpisode, let series = item.seriesId else { return }
         let around: ItemsResult? = try? await client.get("/Shows/\(series)/Episodes", ["userId": userId, "AdjacentTo": item.id])
-        let episodes = around?.items ?? []
-        guard let at = episodes.firstIndex(where: { $0.id == item.id }), at + 1 < episodes.count else { return }
-        let next = episodes[at + 1]
-        if next.locationType != "Virtual" { nextEpisode = next }
+        var episodes = around?.items ?? []
+        // Filler and recap episodes the server marks are passed over, as the settings say.
+        let rules = rules
+        let skipped = { (episode: Item) in
+            episode.id != item.id
+                && ((rules.skipFillers && episode.aiostreams?.filler == true) || (rules.skipRecaps && episode.aiostreams?.recap == true))
+        }
+        // A run of skipped episodes needs the rest of the show.
+        if episodes.contains(where: skipped) {
+            let all: ItemsResult? = try? await client.get("/Shows/\(series)/Episodes", ["userId": userId])
+            episodes = all?.items ?? episodes
+        }
+        guard let at = episodes.firstIndex(where: { $0.id == item.id }) else { return }
+        for next in episodes[(at + 1)...] {
+            // Not out yet, or (with Mark unaired) out only on a date still to come: nothing to play on to.
+            let airsLater = rules.markUnaired && (parseDate(next.premiereDate) ?? .distantPast) > Date()
+            if next.locationType == "Virtual" || airsLater { return }
+            if !skipped(next) {
+                nextEpisode = next
+                return
+            }
+        }
+    }
+
+    /// The server's segments and the ones the file's chapters name: for each kind, the chapters'
+    /// where Skip by the file's chapters is on, else the server's, the other filling what's left.
+    private func combineSegments() {
+        let named = MediaSegment.named(chapters: chapters.map { (title: $0.name, start: $0.startSeconds) }, duration: duration)
+        var kinds = Set<String>()
+        var combined: [MediaSegment] = []
+        for source in rules.chapterSkips ? [named, serverSegments] : [serverSegments, named] {
+            let added = source.filter { !kinds.contains($0.type) }
+            kinds.formUnion(added.map(\.type))
+            combined += added
+        }
+        segments = combined.sorted { $0.start < $1.start }
     }
 
     /// Anime by the web app's test: an anime database id on the title, its season or its show. A

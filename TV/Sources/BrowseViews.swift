@@ -179,13 +179,22 @@ struct TrailingIconLabel: LabelStyle {
 /// A title's poster, 168 × 252, with its name and year under it, as the web app's TV rows show;
 /// with `wide`, a still instead.
 struct PosterLink: View {
+    @Environment(\.cardFocused) private var cardFocused
+    @FocusState private var focused: Bool
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
     let item: Item
     var wide: Bool = false
 
+    /// A poster's width at the web app's Poster size: small, medium or large.
+    static func width(_ size: String) -> CGFloat {
+        Theme.px(size == "small" ? 136 : size == "large" ? 200 : 168)
+    }
+
     private var stillWide: Bool { wide || item.isEpisode }
     private var size: CGSize {
-        stillWide ? WideCard.size : CGSize(width: Theme.px(168), height: Theme.px(252))
+        let width = Self.width(prefs.posterSize)
+        return stillWide ? WideCard.size : CGSize(width: width, height: width * 1.5)
     }
 
     private var imageURL: URL? {
@@ -229,13 +238,19 @@ struct PosterLink: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.px(8), style: .continuous))
             }
             .buttonStyle(CardStyle())
+            .focused($focused)
+            .onChange(of: focused) { _, on in if on { cardFocused(item) } }
             .itemMenu(item)
+            // What the web app's Poster text asks for: the title, the year, both or neither.
+            let lines = stillWide ? ["title", "year"] : prefs.posterLines
             VStack(alignment: .leading, spacing: Theme.px(2)) {
-                Text(item.isEpisode ? (item.seriesName ?? item.displayTitle) : (item.name ?? ""))
-                    .font(Theme.font(Theme.sm, .medium))
-                    .lineLimit(1)
+                if lines.contains("title") {
+                    Text(item.isEpisode ? (item.seriesName ?? item.displayTitle) : (item.name ?? ""))
+                        .font(Theme.font(Theme.sm, .medium))
+                        .lineLimit(1)
+                }
                 let second = item.isEpisode ? item.displayTitle : item.productionYear.map(String.init)
-                if let second {
+                if lines.contains("year"), let second {
                     Text(second)
                         .font(Theme.font(Theme.xs))
                         .foregroundStyle(Theme.gray400)
@@ -291,15 +306,18 @@ private struct RefreshOnReturn: ViewModifier {
 
 /// Posters in rows of six, which a page of items shows.
 struct PosterGrid: View {
+    @EnvironmentObject private var prefs: Preferences
     let items: [Item]
     var onLast: (() -> Void)? = nil
     /// As many columns as fit, rather than six, for a page that may be narrower than the screen.
     var fitting = false
 
     private var columns: [GridItem] {
-        let size = Theme.px(168)
+        let size = PosterLink.width(prefs.posterSize)
         if fitting { return [GridItem(.adaptive(minimum: size, maximum: size), spacing: Theme.px(16))] }
-        return Array(repeating: GridItem(.fixed(size), spacing: Theme.px(16)), count: 6)
+        // Six across at the usual size; as many as the page held at it otherwise.
+        let count = Int((Theme.px(168) * 6 + Theme.px(16) * 5 + Theme.px(16)) / (size + Theme.px(16)))
+        return Array(repeating: GridItem(.fixed(size), spacing: Theme.px(16)), count: max(count, 1))
     }
 
     var body: some View {
@@ -446,6 +464,7 @@ struct FavouritesView: View {
 
 struct SearchView: View {
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
     @State private var term = ""
     @State private var results: [Item] = []
     @State private var searching = false
@@ -468,7 +487,23 @@ struct SearchView: View {
 
     private func grid(in edges: Edge.Set) -> some View {
         ScrollView {
-            PosterGrid(items: results, fitting: true)
+            if prefs.combineSearch {
+                PosterGrid(items: results, fitting: true)
+            } else {
+                // A section each, as the web app's search shows them unless they're combined.
+                let movies = results.filter { $0.type == "Movie" }
+                let shows = results.filter(\.isSeries)
+                VStack(alignment: .leading, spacing: Theme.px(8)) {
+                    if !movies.isEmpty {
+                        Text("Movies").font(Theme.font(Theme.xl, .semibold)).pagePadding()
+                        PosterGrid(items: movies, fitting: true)
+                    }
+                    if !shows.isEmpty {
+                        Text("Shows").font(Theme.font(Theme.xl, .semibold)).pagePadding()
+                        PosterGrid(items: shows, fitting: true)
+                    }
+                }
+            }
             if searching { ProgressView() }
             if !searching && term.count >= 2 && results.isEmpty {
                 Text("No results for “\(term)”.").font(Theme.font(Theme.base)).foregroundStyle(Theme.gray400)

@@ -53,7 +53,8 @@ struct PlayerScreen: View {
             look: prefs.subtitleLook,
             speakers: prefs.speakers,
             animeUpscaling: prefs.animeUpscaling,
-            userId: session.userId
+            userId: session.userId,
+            rules: prefs.playerRules
         )
         model = player
         player.start()
@@ -234,8 +235,8 @@ private struct PlayerChrome: View {
                     switch direction {
                     // Live, there's nothing to skip through: a press only shows the controls.
                     case .left where model.isLive, .right where model.isLive: reveal(.play)
-                    case .left: if !moved(-1) { model.skip(-10) }; reveal(.bar)
-                    case .right: if !moved(1) { model.skip(10) }; reveal(.bar)
+                    case .left: if !moved(-1) { model.skip(-step) }; if prefs.showOnPauseAndSkip { reveal(.bar) }
+                    case .right: if !moved(1) { model.skip(step) }; if prefs.showOnPauseAndSkip { reveal(.bar) }
                     default: reveal(.play)
                     }
                 }
@@ -349,7 +350,9 @@ private struct PlayerChrome: View {
             }
             playOn(auto: true)
         }
-        .onChange(of: model.paused) { _, paused in if paused { reveal(nil) } else { wake() } }
+        .onChange(of: model.paused) { _, paused in
+            if paused { if prefs.showOnPauseAndSkip || shown { reveal(nil) } } else { wake() }
+        }
     }
 
     // MARK: Top
@@ -385,6 +388,15 @@ private struct PlayerChrome: View {
                 }
             }
             Spacer()
+            if prefs.showClock {
+                // The time of day, as the web app's player shows it.
+                TimelineView(.everyMinute) { context in
+                    Text(prefs.time(context.date))
+                        .font(Theme.font(17, .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.gray200)
+                }
+            }
         }
         .padding(.horizontal, Theme.px(32))
         .padding(.top, Theme.px(28))
@@ -408,8 +420,8 @@ private struct PlayerChrome: View {
                 .onMoveCommand { direction in
                     input()
                     switch direction {
-                    case .left: if !moved(-1) { model.skip(-10) }
-                    case .right: if !moved(1) { model.skip(10) }
+                    case .left: if !moved(-1) { model.skip(-step) }
+                    case .right: if !moved(1) { model.skip(step) }
                     case .down: if !swiping { focus = .play }
                     default: break
                     }
@@ -433,15 +445,18 @@ private struct PlayerChrome: View {
                         .background(Capsule().fill(Color.red.opacity(0.85)))
                         .padding(.leading, Theme.px(12))
                 } else {
-                    Button { model.skip(-10) } label: { Image(systemName: "gobackward.10") }
+                    Button { model.skip(-step) } label: { Image(systemName: "gobackward.\(prefs.seekStep)") }
                         .buttonStyle(ControlIconStyle())
                         .focused($focus, equals: .back)
-                    Button { model.skip(10) } label: { Image(systemName: "goforward.10") }
+                    Button { model.skip(step) } label: { Image(systemName: "goforward.\(prefs.seekStep)") }
                         .buttonStyle(ControlIconStyle())
                         .focused($focus, equals: .forward)
                     HStack(spacing: 0) {
-                        Text(clock(model.scrubTarget ?? model.position))
-                        Text(" / " + clock(model.duration)).foregroundStyle(Theme.gray400)
+                        let at = model.scrubTarget ?? model.position
+                        Text(clock(at))
+                        // The time left, or the whole length, as the setting asks.
+                        Text(prefs.showTimeLeft ? " / -" + clock(max(model.duration - at, 0)) : " / " + clock(model.duration))
+                            .foregroundStyle(Theme.gray400)
                     }
                     .font(Theme.font(17, .medium))
                     .monospacedDigit()
@@ -552,6 +567,9 @@ private struct PlayerChrome: View {
         .frame(maxWidth: Theme.px(560))
         .background(RoundedRectangle(cornerRadius: Theme.px(16)).fill(Color(white: 17 / 255).opacity(0.95)))
     }
+
+    /// The seek step the settings choose, in seconds.
+    private var step: Double { Double(prefs.seekStep) }
 
     // MARK: Skipping and the next episode
 

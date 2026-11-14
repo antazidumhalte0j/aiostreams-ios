@@ -45,10 +45,36 @@ struct HomeView: View {
     @State private var error: String?
     @State private var choice: VersionChoice?
 
+    /// The focused card's title, which a following hero shows.
+    @State private var followed: Item?
+
+    /// Hero: rotates through featured titles, or follows the focused card, pinned over the rows.
+    private var following: Bool { prefs.heroMode != "rotate" }
+
     var body: some View {
-        ScrollView {
+        Group {
+            if following && !hero.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    HeroCarousel(items: hero, play: play, followed: followed ?? hero.first,
+                                 height: prefs.heroMode == "corner" ? Theme.px(360) : Theme.px(456))
+                    ScrollView { rows }
+                        .edgeToEdge()
+                }
+            } else {
+                ScrollView { rows }
+                    .edgeToEdge()
+            }
+        }
+        .environment(\.cardFocused, { item in if following { followed = item } })
+        .task { if libraries.isEmpty && hero.isEmpty { await load() } }
+        .refreshOnReturn { await load() }
+        .reloadOnWatchChange { await load() }
+        .playFlow($choice) { Task { await load() } }
+    }
+
+    private var rows: some View {
             LazyVStack(alignment: .leading, spacing: Theme.px(40)) {
-                if !hero.isEmpty {
+                if !hero.isEmpty && !following {
                     HeroCarousel(items: hero, play: play)
                         // Rows sit just under it.
                         .padding(.bottom, -Theme.px(32))
@@ -96,12 +122,6 @@ struct HomeView: View {
                 }
             }
             .padding(.bottom, Theme.px(64))
-        }
-        .edgeToEdge()
-        .task { if libraries.isEmpty && hero.isEmpty { await load() } }
-        .refreshOnReturn { await load() }
-        .reloadOnWatchChange { await load() }
-        .playFlow($choice) { Task { await load() } }
     }
 
     /// The Live TV row's channels, as the web app's: favourites, then those played here lately.
@@ -230,6 +250,9 @@ struct HeroCarousel: View {
     @EnvironmentObject private var session: Session
     let items: [Item]
     let play: (Item) -> Void
+    /// The focused card's title, which the hero shows instead of rotating (Hero: follows the card).
+    var followed: Item? = nil
+    var height: CGFloat = HeroCarousel.height
 
     @State private var index = 0
     @FocusState private var focus: HeroAction?
@@ -238,7 +261,7 @@ struct HeroCarousel: View {
     static let height = Theme.px(576)
     @EnvironmentObject private var prefs: Preferences
 
-    private var item: Item { items[min(index, items.count - 1)] }
+    private var item: Item { followed ?? items[min(index, items.count - 1)] }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -247,16 +270,16 @@ struct HeroCarousel: View {
             details
                 .id(item.id)
                 .transition(.opacity)
-            if items.count > 1 { dots }
+            if items.count > 1 && followed == nil { dots }
         }
-        .frame(height: Self.height)
+        .frame(height: height)
         .frame(maxWidth: .infinity)
         // Under the rail, as the web app's hero is.
         .padding(.leading, -Theme.px(80))
         .clipped()
         .animation(.easeInOut(duration: 0.6), value: index)
         .task(id: "\(index)-\(focus == nil)") {
-            guard focus == nil, items.count > 1 else { return }
+            guard focus == nil, items.count > 1, followed == nil else { return }
             try? await Task.sleep(for: .seconds(prefs.heroSeconds))
             guard !Task.isCancelled, focus == nil else { return }
             index = (index + 1) % items.count
@@ -267,9 +290,9 @@ struct HeroCarousel: View {
     /// The backdrop sits right, no wider than 2.6 times its height, fading in from the left.
     private var backdrop: some View {
         GeometryReader { geometry in
-            let width = min(geometry.size.width, Self.height * 2.6)
+            let width = min(geometry.size.width, height * 2.6)
             RemoteImage(url: session.client?.backdrop(item, height: 1080))
-                .frame(width: width, height: Self.height)
+                .frame(width: width, height: height)
                 .mask(
                     LinearGradient(
                         stops: [.init(color: .clear, location: 0), .init(color: .black, location: Theme.px(192) / width)],
@@ -303,7 +326,7 @@ struct HeroCarousel: View {
                 startPoint: .bottom,
                 endPoint: .top
             )
-            .frame(height: Self.height * 2 / 3)
+            .frame(height: height * 2 / 3)
         }
         .allowsHitTesting(false)
     }
@@ -334,7 +357,7 @@ struct HeroCarousel: View {
                 .focused($focus, equals: .info)
             }
             .onMoveCommand { direction in
-                guard items.count > 1 else { return }
+                guard items.count > 1, followed == nil else { return }
                 let first: HeroAction = item.playable ? .play : .info
                 if direction == .right, focus == .info {
                     index = (index + 1) % items.count
@@ -473,13 +496,18 @@ struct WideRow<Action: View>: View {
 
 /// A 304 × 171 still with how far it got, its name and time left, and the episode or year under it.
 struct WideCard: View {
+    @Environment(\.cardFocused) private var cardFocused
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var prefs: Preferences
+    @FocusState private var focused: Bool
     let item: Item
     /// Not out yet: the air day over the still, and how long until it beside the name.
     var upcoming = false
     let action: () -> Void
 
     private var airs: Date? { upcoming ? parseDate(item.premiereDate) : nil }
+    /// Spoiler blur: an episode not started, until it has focus.
+    private var hidden: Bool { prefs.blurSpoilers && item.unstarted && !focused }
 
     static let size = CGSize(width: Theme.px(304), height: Theme.px(171))
 
@@ -489,6 +517,8 @@ struct WideCard: View {
                 ZStack(alignment: .bottom) {
                     RemoteImage(url: session.client?.still(item, height: Int(Self.size.height * 2)))
                         .frame(width: Self.size.width, height: Self.size.height)
+                        .blur(radius: hidden ? Theme.px(12) : 0, opaque: true)
+                        .animation(.easeOut(duration: 0.3), value: hidden)
                         .overlay(alignment: .topLeading) {
                             if let airs {
                                 Text(airs.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
@@ -513,6 +543,8 @@ struct WideCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.px(8), style: .continuous))
             }
             .buttonStyle(CardStyle())
+            .focused($focused)
+            .onChange(of: focused) { _, on in if on { cardFocused(item) } }
             .itemMenu(item)
             VStack(alignment: .leading, spacing: Theme.px(2)) {
                 HStack(alignment: .firstTextBaseline) {
@@ -528,6 +560,8 @@ struct WideCard: View {
                     .font(Theme.font(13))
                     .foregroundStyle(Theme.gray400)
                     .lineLimit(1)
+                    .blur(radius: hidden ? Theme.px(5) : 0)
+                    .animation(.easeOut(duration: 0.3), value: hidden)
             }
             .padding(.horizontal, Theme.px(2))
             .frame(width: Self.size.width, alignment: .leading)
@@ -632,5 +666,17 @@ private struct ChannelCard: View {
             .padding(.horizontal, Theme.px(2))
             .frame(width: WideCard.size.width, alignment: .leading)
         }
+    }
+}
+
+/// Told which card has focus, for a hero that follows it.
+private struct CardFocusedKey: EnvironmentKey {
+    static let defaultValue: (Item) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var cardFocused: (Item) -> Void {
+        get { self[CardFocusedKey.self] }
+        set { self[CardFocusedKey.self] = newValue }
     }
 }

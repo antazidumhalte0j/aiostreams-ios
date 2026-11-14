@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The web app's look (packages/ui/theme.css, packages/web/src/styles.css), at a TV's scale:
 /// the web app lays a TV out at 1280 × 720, and tvOS lays out at 1920 × 1080 points,
@@ -9,10 +10,33 @@ enum Theme {
     /// CSS pixels to points.
     static func px(_ value: CGFloat) -> CGFloat { value * scale }
 
-    static let background = Color(red: 7 / 255, green: 7 / 255, blue: 7 / 255)
-    /// `--ring`, brand-400: the one focus mark everywhere.
-    static let ring = Color(red: 159 / 255, green: 146 / 255, blue: 255 / 255)
-    static let brand500 = Color(red: 97 / 255, green: 82 / 255, blue: 223 / 255)
+    /// The page's colour; the theme's background where the web app's theme set one.
+    static var background: Color { custom.background ?? Color(red: 7 / 255, green: 7 / 255, blue: 7 / 255) }
+    /// `--ring`, brand-400: the one focus mark everywhere, a step lighter than the accent.
+    static var ring: Color { custom.ring ?? Color(red: 159 / 255, green: 146 / 255, blue: 255 / 255) }
+    static var brand500: Color { custom.accent ?? Color(red: 97 / 255, green: 82 / 255, blue: 223 / 255) }
+
+    /// The web app's theme colours (Settings > Theme), applied as the app starts and when they change.
+    struct Custom: Equatable {
+        var accent: Color?
+        var ring: Color?
+        var background: Color?
+    }
+
+    private(set) static var custom = Custom()
+
+    /// Sets the theme from the synced `#rrggbb` colours; nil keeps the default.
+    static func apply(accent: String?, background: String?) {
+        // The web app takes a colour typed without its #.
+        let hex = { (text: String) in JSON.color(text.hasPrefix("#") ? text : "#" + text) }
+        let accentColor = accent.flatMap(hex)
+        custom = Custom(
+            accent: accentColor.map(Color.init),
+            // brand-400 to the accent's 500: a third of the way to white.
+            ring: accentColor.map { Color($0.mixed(with: .white, by: 0.35)) },
+            background: background.flatMap(hex).map(Color.init)
+        )
+    }
     static let gray200 = Color(white: 209 / 255)
     static let gray300 = Color(white: 202 / 255)
     static let gray400 = Color(white: 143 / 255)
@@ -214,5 +238,16 @@ struct BrandLogo: View {
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(height: height)
+    }
+}
+
+private extension UIColor {
+    func mixed(with other: UIColor, by share: CGFloat) -> UIColor {
+        var (r1, g1, b1, a1): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        var (r2, g2, b2, a2): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        other.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+        return UIColor(red: r1 + (r2 - r1) * share, green: g1 + (g2 - g1) * share,
+                       blue: b1 + (b2 - b1) * share, alpha: a1 + (a2 - a1) * share)
     }
 }

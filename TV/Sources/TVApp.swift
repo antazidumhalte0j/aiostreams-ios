@@ -20,6 +20,8 @@ struct AIOStreamsTVApp: App {
                 case .signedIn: MainView()
                 }
             }
+            // The web app's theme colours, once they've loaded.
+            .id(prefs.themeKey)
             .environmentObject(session)
             .environmentObject(prefs)
             .preferredColorScheme(.dark)

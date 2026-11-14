@@ -28,6 +28,7 @@ final class Preferences: ObservableObject {
            let saved = prefs["CustomPrefs"] as? [String: Any] {
             custom = saved.compactMapValues { $0 as? String }
         }
+        Theme.apply(accent: accentColor, background: backgroundColor)
         if let me = try? await client.json("GET", "/Users/Me") {
             configuration = me["Configuration"] as? [String: Any] ?? [:]
         }
@@ -43,6 +44,7 @@ final class Preferences: ObservableObject {
     /// Saves a synced setting; the default is stored as nothing, as the web app stores it.
     func set(_ key: String, _ value: String?, fallback: String) {
         if let value, value != fallback { custom[key] = value } else { custom.removeValue(forKey: key) }
+        if key == "accentColor" || key == "backgroundColor" { Theme.apply(accent: accentColor, background: backgroundColor) }
         // Settles before it saves, as a run of presses would otherwise send each.
         pushTask?.cancel()
         pushTask = Task { [weak self] in
@@ -104,6 +106,27 @@ final class Preferences: ObservableObject {
 
     var heroSeconds: Double { number("heroSeconds", 9) }
 
+    // MARK: Interface, under the web app's keys (lib/settings)
+
+    /// Episodes not started show their pictures and names blurred until focused.
+    var blurSpoilers: Bool { flag("blurSpoilers", false) }
+    /// Search results in one grid, rather than a row each for movies and shows.
+    var combineSearch: Bool { flag("combineSearch", false) }
+    /// `rotate` through featured titles, or `follow` the focused card (`corner`: compactly).
+    var heroMode: String { text("heroMode", "rotate") }
+    /// `small`, `medium` or `large` posters.
+    var posterSize: String { text("posterSize", "medium") }
+    /// What shows under a poster: its title, its year, both or `none`.
+    var posterLines: Set<String> {
+        let raw = text("posterText", "title,year")
+        return Set(raw.split(separator: ",").map(String.init).filter { ["title", "year"].contains($0) })
+    }
+    /// The theme's colours, `#rrggbb`, where the web app's theme set them.
+    var accentColor: String? { custom["accentColor"].flatMap { $0.isEmpty ? nil : $0 } }
+    var backgroundColor: String? { custom["backgroundColor"].flatMap { $0.isEmpty ? nil : $0 } }
+    /// Changes when the theme does, so the app draws itself again in its colours.
+    var themeKey: String { "\(accentColor ?? "")|\(backgroundColor ?? "")" }
+
     // MARK: Skipping and the next episode, under the web app's keys (lib/settings)
 
     /// `ask` offers a button, `skip` skips by itself, `none` leaves it, for Intro, Recap, Outro,
@@ -119,6 +142,36 @@ final class Preferences: ObservableObject {
     var nextFallbackFirst: Bool { flag("nextFallbackFirst", true) }
     /// After this many episodes in a row with nobody pressing anything, ask first; 0 never asks.
     var stillWatching: Int { Int(number("stillWatching", 3)) }
+    /// Where a file's chapters name an intro, credits, recap or preview, skip by them over the server's times.
+    var chapterSkips: Bool { flag("chapterSkips", true) }
+    /// Playing on passes over filler and recap episodes the server marks.
+    var skipFillers: Bool { flag("skipFillers", true) }
+    var skipRecaps: Bool { flag("skipRecaps", true) }
+    /// An episode whose air date is still to come isn't played on to.
+    var markUnaired: Bool { flag("markUnaired", true) }
+
+    /// The player's own controls, kept on this Apple TV as the web app keeps them on each device.
+    @Published var seekStep: Int = UserDefaults.standard.object(forKey: "controls.seekStep") as? Int ?? 10 {
+        didSet { UserDefaults.standard.set(seekStep, forKey: "controls.seekStep") }
+    }
+    /// The time left rather than the whole length beside the position.
+    @Published var showTimeLeft: Bool = UserDefaults.standard.bool(forKey: "controls.timeLeft") {
+        didSet { UserDefaults.standard.set(showTimeLeft, forKey: "controls.timeLeft") }
+    }
+    /// The time of day in the player's top corner.
+    @Published var showClock: Bool = UserDefaults.standard.object(forKey: "controls.clock") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showClock, forKey: "controls.clock") }
+    }
+    /// Pausing and skipping bring the controls up.
+    @Published var showOnPauseAndSkip: Bool = UserDefaults.standard.object(forKey: "controls.showOnPauseAndSkip") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showOnPauseAndSkip, forKey: "controls.showOnPauseAndSkip") }
+    }
+
+    /// What the player needs of these, read as it starts.
+    var playerRules: PlayerRules {
+        PlayerRules(chapterSkips: chapterSkips, skipFillers: skipFillers, skipRecaps: skipRecaps, markUnaired: markUnaired)
+    }
+
     /// Jellyfin's own setting, which the web app's switch changes.
     var autoplayNext: Bool { configuration["EnableNextEpisodeAutoPlay"] as? Bool ?? true }
 
@@ -267,13 +320,37 @@ struct SettingsView: View {
                            options: [15, 30, 45, 60, 90, 120].map { ("\($0) seconds before the end", String($0)) })
                     synced("Countdown", key: "nextCountdown", fallback: "15",
                            options: [5, 10, 15, 30].map { ("\($0) seconds", String($0)) })
+                    toggle("Skip by the file's chapters", key: "chapterSkips", fallback: true)
                     toggle("Play the first version when none matches", key: "nextFallbackFirst", fallback: true)
+                    toggle("Skip filler episodes", key: "skipFillers", fallback: true)
+                    toggle("Skip recap episodes", key: "skipRecaps", fallback: true)
+                    toggle("Wait for episodes to air", key: "markUnaired", fallback: true)
                     synced("Ask if you're still watching", key: "stillWatching", fallback: "3",
                            options: [("Never", "0")] + [2, 3, 4, 5, 8].map { ("After \($0) episodes", String($0)) })
                     Text("The next episode plays in the version that matches the one you're watching. Where none does, the first plays, or with that off, the versions are listed. Back hides the offer.")
                         .font(Theme.font(Theme.sm))
                         .foregroundStyle(Theme.gray400)
                         .padding(.horizontal, Theme.px(16))
+                }
+                section("Theme", note: "Shared with the web app.") {
+                    synced("Accent colour", key: "accentColor", fallback: "",
+                           options: [("Default", ""), ("Blue", "#3b82f6"), ("Sky", "#0ea5e9"), ("Teal", "#14b8a6"),
+                                     ("Green", "#22c55e"), ("Amber", "#f59e0b"), ("Orange", "#f97316"), ("Red", "#ef4444"),
+                                     ("Pink", "#ec4899"), ("Violet", "#8b5cf6")])
+                    synced("Background", key: "backgroundColor", fallback: "",
+                           options: [("Default", ""), ("Black", "#000000"), ("Charcoal", "#18181b"), ("Slate", "#0f172a"),
+                                     ("Navy", "#0b1026")])
+                }
+                section("Player controls", note: "Kept on this Apple TV.") {
+                    row("Skip step", value: "\(prefs.seekStep) seconds") {
+                        chooser = Chooser(title: "Skip step", options: [5, 10, 15, 30].map { ("\($0) seconds", String($0)) },
+                                          current: String(prefs.seekStep)) { prefs.seekStep = Int($0) ?? 10 }
+                    }
+                    row("Show the time left", value: prefs.showTimeLeft ? "On" : "Off") { prefs.showTimeLeft.toggle() }
+                    row("Show the clock", value: prefs.showClock ? "On" : "Off") { prefs.showClock.toggle() }
+                    row("Show the controls on pause and skip", value: prefs.showOnPauseAndSkip ? "On" : "Off") {
+                        prefs.showOnPauseAndSkip.toggle()
+                    }
                 }
                 section("Video", note: nil) {
                     row("Anime upscaling", value: prefs.animeUpscaling ? "On" : "Off") {
@@ -330,6 +407,15 @@ struct SettingsView: View {
                         ) { prefs.startPage = $0 }
                     }
                     toggle("Merge continue watching and next up", key: "mergeNextUp", fallback: false)
+                    toggle("Combine movie and show results", key: "combineSearch", fallback: false)
+                    toggle("Blur episodes not started", key: "blurSpoilers", fallback: false)
+                    synced("Hero", key: "heroMode", fallback: "rotate",
+                           options: [("Rotates through featured titles", "rotate"), ("Follows the selected card", "follow"),
+                                     ("Follows the selected card, compact", "corner")])
+                    synced("Poster size", key: "posterSize", fallback: "medium",
+                           options: [("Small", "small"), ("Medium", "medium"), ("Large", "large")])
+                    synced("Poster text", key: "posterText", fallback: "title,year",
+                           options: [("Title and year", "title,year"), ("Title", "title"), ("Year", "year"), ("None", "none")])
                     synced("Time format", key: "timeFormat", fallback: "auto",
                            options: [("Automatic", "auto"), ("12-hour", "12"), ("24-hour", "24")])
                     row("Prevent accidental exit", value: prefs.preventAccidentalExit ? "On" : "Off") {
@@ -529,4 +615,12 @@ private struct ChooserPanel: View {
         .onAppear { focused = chooser.current }
         .onExitCommand(perform: done)
     }
+}
+
+/// The synced playback settings the player follows.
+struct PlayerRules {
+    var chapterSkips = true
+    var skipFillers = true
+    var skipRecaps = true
+    var markUnaired = true
 }
