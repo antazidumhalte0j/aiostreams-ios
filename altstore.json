@@ -1,0 +1,69 @@
+{
+  "name": "AIOStreams for iOS",
+  "identifier": "io.github.aiostreams-ios",
+  "subtitle": "An unofficial iPhone and iPad port of AIOStreams.",
+  "website": "https://github.com/antazidumhalte0j/aiostreams-ios",
+  "iconURL": "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/AIOStreams/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+  "tintColor": "6152DF",
+  "apps": [
+    {
+      "name": "AIOStreams",
+      "bundleIdentifier": "io.github.aiostreams-ios.app",
+      "developerName": "aiostreams-ios",
+      "subtitle": "Your AIOStreams server, played through AetherEngine.",
+      "localizedDescription": "An unofficial iPhone and iPad port of the AIOStreams app. It runs AIOStreams' own web app over AetherEngine, with HDR10, HDR10+, Dolby Vision and Atmos, trailers, Picture in Picture and downloads. Not affiliated with AIOStreams or AetherEngine.",
+      "iconURL": "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/AIOStreams/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+      "tintColor": "6152DF",
+      "category": "entertainment",
+      "screenshots": [
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/iphone-home.jpg",
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/iphone-show.jpg",
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/iphone-movie.jpg",
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/iphone-versions.jpg"
+      ],
+      "versions": [
+        {
+          "version": "0.7.9",
+          "date": "2026-11-22T04:13:36Z",
+          "localizedDescription": "Unsigned IPAs. Sign them when you install them.",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.7.9/AIOStreams.ipa",
+          "size": 18601857,
+          "minOSVersion": "18.0",
+          "sha256": "27522b9ce133b88f92e0c5735148bf45c76aa07276a21ecd2d16e63e8028440b"
+        },
+        {
+          "version": "0.3.9",
+          "date": "2026-11-14T22:49:08Z",
+          "localizedDescription": "Full Changelog: https://github.com/antazidumhalte0j/aiostreams-ios/compare/v0.3.7...v0.3.9",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.9/AIOStreams.ipa",
+          "size": 18060400,
+          "minOSVersion": "18.0"
+        },
+        {
+          "version": "0.3.7",
+          "date": "2026-11-14T19:25:09Z",
+          "localizedDescription": "Full Changelog: https://github.com/antazidumhalte0j/aiostreams-ios/compare/v0.3.5...v0.3.7",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.7/AIOStreams.ipa",
+          "size": 18054023,
+          "minOSVersion": "18.0"
+        },
+        {
+          "version": "0.3.5",
+          "date": "2026-11-14T13:08:10Z",
+          "localizedDescription": "Unsigned IPAs. Sign them when you install them.",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.5/AIOStreams.ipa",
+          "size": 17422726,
+          "minOSVersion": "18.0"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [],
+        "privacy": {
+          "NSLocalNetworkUsageDescription": "AIOStreams connects to your server and streams on your local network.",
+          "NSMicrophoneUsageDescription": "Voice search in the page's search field uses the microphone."
+        }
+      }
+    }
+  ],
+  "news": []
+}
