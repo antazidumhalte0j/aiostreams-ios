@@ -3392,6 +3392,38 @@
       "zh-Hans": "每个影片字幕的起始偏移。小于零则提前显示。观看时仍可在播放器的“时间同步”面板中调整。",
       "ar": "نقطة بدء ترجمات كل عنوان. القيم الأقل من الصفر تُظهرها مبكرًا. ولا تزال لوحة التوقيت في المشغّل تحرّكها أثناء المشاهدة.",
       "ro": "De unde încep subtitrările fiecărui titlu. Sub zero apar mai devreme. Panoul Sincronizare din player le mută în continuare în timp ce vizionezi."
+    },
+    "Screen margins": {
+      "de": "Bildschirmränder",
+      "el": "Περιθώρια οθόνης",
+      "es": "Márgenes de pantalla",
+      "fr": "Marges de l’écran",
+      "id": "Margin layar",
+      "it": "Margini dello schermo",
+      "ms": "Margin skrin",
+      "pl": "Marginesy ekranu",
+      "pt-BR": "Margens da tela",
+      "pt": "Margens do ecrã",
+      "tr": "Ekran kenar boşlukları",
+      "zh-Hans": "屏幕边距",
+      "ar": "هوامش الشاشة",
+      "ro": "Margini ecran"
+    },
+    "Shrinks the whole app towards the middle of the screen, for TVs and projectors that cut off its edges.": {
+      "de": "Verkleinert die ganze App zur Bildschirmmitte hin, für Fernseher und Projektoren, die die Ränder abschneiden.",
+      "el": "Σμικρύνει όλη την εφαρμογή προς το κέντρο της οθόνης, για τηλεοράσεις και προβολείς που κόβουν τις άκρες της.",
+      "es": "Reduce toda la app hacia el centro de la pantalla, para televisores y proyectores que recortan los bordes.",
+      "fr": "Réduit toute l’app vers le centre de l’écran, pour les téléviseurs et projecteurs qui en coupent les bords.",
+      "id": "Mengecilkan seluruh aplikasi ke tengah layar, untuk TV dan proyektor yang memotong tepinya.",
+      "it": "Rimpicciolisce l’intera app verso il centro dello schermo, per TV e proiettori che ne tagliano i bordi.",
+      "ms": "Mengecilkan seluruh apl ke tengah skrin, untuk TV dan projektor yang memotong tepinya.",
+      "pl": "Zmniejsza całą aplikację w stronę środka ekranu, dla telewizorów i projektorów, które obcinają jego krawędzie.",
+      "pt-BR": "Reduz o app inteiro em direção ao centro da tela, para TVs e projetores que cortam as bordas.",
+      "pt": "Reduz toda a app em direção ao centro do ecrã, para televisores e projetores que cortam as margens.",
+      "tr": "Kenarları kesen televizyonlar ve projektörler için tüm uygulamayı ekranın ortasına doğru küçültür.",
+      "zh-Hans": "将整个应用向屏幕中央缩小，适用于会裁切画面边缘的电视和投影仪。",
+      "ar": "يصغّر التطبيق بالكامل نحو منتصف الشاشة، لأجهزة التلفاز والعارض التي تقص حوافها.",
+      "ro": "Micșorează întreaga aplicație spre mijlocul ecranului, pentru televizoare și proiectoare care îi taie marginile."
     }
   },
   "plurals": {

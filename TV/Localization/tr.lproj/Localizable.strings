@@ -325,6 +325,7 @@
 "SDH, with sounds described" = "SDH, sesleri betimleyen altyazı";
 "Sans serif" = "Serifsiz";
 "Saved to your account, so the web app and your other devices use them too." = "Hesabına kaydedilir, böylece web uygulaması ve diğer cihazların da bunları kullanır.";
+"Screen margins" = "Ekran kenar boşlukları";
 "Search" = "Ara";
 "Search again" = "Yeniden ara";
 "Searching your addons…" = "Eklentilerin aranıyor…";
@@ -348,6 +349,7 @@
 "Show the clock" = "Saati göster";
 "Show time left" = "Kalan süreyi göster";
 "Shows" = "Diziler";
+"Shrinks the whole app towards the middle of the screen, for TVs and projectors that cut off its edges." = "Kenarları kesen televizyonlar ve projektörler için tüm uygulamayı ekranın ortasına doğru küçültür.";
 "Shuffle" = "Karıştır";
 "Sign in" = "Oturum aç";
 "Signed in as" = "Giriş yapan";

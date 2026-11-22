@@ -37,7 +37,9 @@ struct AIOStreamsTVApp: App {
             .onOpenURL { DeepLink.open($0) }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .background { session.left() } else if phase == .active { session.returned() }
+                if phase == .active { ScreenFit.apply() }
             }
+            .onAppear { ScreenFit.apply() }
             .tint(Theme.ring)
         }
     }

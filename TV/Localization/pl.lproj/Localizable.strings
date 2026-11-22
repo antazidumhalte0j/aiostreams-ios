@@ -325,6 +325,7 @@
 "SDH, with sounds described" = "SDH, z opisem dźwięków (dla niesłyszących)";
 "Sans serif" = "Bezszeryfowa (Sans serif)";
 "Saved to your account, so the web app and your other devices use them too." = "Zapisywane na Twoim koncie, więc aplikacja webowa i inne Twoje urządzenia też z nich korzystają.";
+"Screen margins" = "Marginesy ekranu";
 "Search" = "Szukaj";
 "Search again" = "Szukaj ponownie";
 "Searching your addons…" = "Przeszukiwanie Twoich addonów…";
@@ -348,6 +349,7 @@
 "Show the clock" = "Pokazuj zegar";
 "Show time left" = "Pokazuj pozostały czas";
 "Shows" = "Seriale";
+"Shrinks the whole app towards the middle of the screen, for TVs and projectors that cut off its edges." = "Zmniejsza całą aplikację w stronę środka ekranu, dla telewizorów i projektorów, które obcinają jego krawędzie.";
 "Shuffle" = "Odtwarzaj losowo";
 "Sign in" = "Zaloguj się";
 "Signed in as" = "Zalogowano jako";

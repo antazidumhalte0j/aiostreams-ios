@@ -325,6 +325,7 @@
 "SDH, with sounds described" = "SDH 字幕（包含声音描述）";
 "Sans serif" = "无衬线体";
 "Saved to your account, so the web app and your other devices use them too." = "保存在你的账户中，网页应用和你的其他设备也会使用。";
+"Screen margins" = "屏幕边距";
 "Search" = "搜索";
 "Search again" = "再次搜索";
 "Searching your addons…" = "正在搜索你的插件…";
@@ -348,6 +349,7 @@
 "Show the clock" = "显示时钟";
 "Show time left" = "显示剩余时间";
 "Shows" = "剧集";
+"Shrinks the whole app towards the middle of the screen, for TVs and projectors that cut off its edges." = "将整个应用向屏幕中央缩小，适用于会裁切画面边缘的电视和投影仪。";
 "Shuffle" = "随机播放";
 "Sign in" = "登录";
 "Signed in as" = "登录身份";

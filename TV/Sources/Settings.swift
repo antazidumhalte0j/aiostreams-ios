@@ -323,6 +323,13 @@ final class Preferences: ObservableObject {
     @Published var preventAccidentalExit: Bool = UserDefaults.standard.object(forKey: "app.preventAccidentalExit") as? Bool ?? true {
         didSet { UserDefaults.standard.set(preventAccidentalExit, forKey: "app.preventAccidentalExit") }
     }
+    /// Underscan: the percent of the screen's width and height left empty on each side, 0 to 6.
+    @Published var screenMargin: Int = UserDefaults.standard.integer(forKey: ScreenFit.key) {
+        didSet {
+            UserDefaults.standard.set(screenMargin, forKey: ScreenFit.key)
+            ScreenFit.apply()
+        }
+    }
 
     /// Anime upscaling: anime plays through AetherEngine's line-art scaler. Kept on this Apple TV, as
     /// the web app keeps its own (`aiostreams-web-video-upscaling`).
@@ -703,6 +710,12 @@ struct SettingsView: View {
                 note(prefs.preventAccidentalExit
                     ? L("Back on Home shows “Press Back again to leave”, and only a second press leaves the app.")
                     : L("Back on Home leaves the app straight away."))
+                row(L("Screen margins"), value: prefs.screenMargin == 0 ? L("Off") : "\(prefs.screenMargin)%") {
+                    chooser = Chooser(title: L("Screen margins"),
+                                      options: (0...6).map { ($0 == 0 ? L("Off") : "\($0)%", String($0)) },
+                                      current: String(prefs.screenMargin)) { prefs.screenMargin = Int($0) ?? 0 }
+                }
+                note(L("Shrinks the whole app towards the middle of the screen, for TVs and projectors that cut off its edges."))
             }
             // The web app's Language card: its language and clock, synced.
             section(L("Language"), note: L("Titles, synopses and version names stay in the language the server sends.")) {
