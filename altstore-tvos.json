@@ -1,0 +1,78 @@
+{
+  "name": "AIOStreams for Apple TV",
+  "identifier": "io.github.aiostreams-ios.tv",
+  "subtitle": "An unofficial Apple TV app for AIOStreams.",
+  "website": "https://github.com/antazidumhalte0j/aiostreams-ios",
+  "iconURL": "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/AIOStreams/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+  "tintColor": "6152DF",
+  "apps": [
+    {
+      "name": "AIOStreams",
+      "bundleIdentifier": "io.github.aiostreams-ios.tv",
+      "developerName": "aiostreams-ios",
+      "subtitle": "Your AIOStreams server, played through AetherEngine.",
+      "localizedDescription": "An unofficial native Apple TV app for AIOStreams, built to look and work like the official apps, played through AetherEngine: HDR10, HDR10+, Dolby Vision and Atmos, Live TV with a guide and catch-up, watch parties, Top Shelf and more. Not affiliated with AIOStreams or AetherEngine.",
+      "iconURL": "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/AIOStreams/Assets.xcassets/AppIcon.appiconset/icon-1024.png",
+      "tintColor": "6152DF",
+      "category": "entertainment",
+      "screenshots": [
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/tv-home.jpg",
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/tv-show.jpg",
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/tv-movie.jpg",
+        "https://raw.githubusercontent.com/antazidumhalte0j/aiostreams-ios/main/docs/screenshots/tv-player.jpg"
+      ],
+      "versions": [
+        {
+          "version": "0.7.9",
+          "date": "2026-11-22T04:13:36Z",
+          "localizedDescription": "Unsigned IPAs. Sign them when you install them.",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.7.9/AIOStreams-tvOS.ipa",
+          "size": 13468356,
+          "minOSVersion": "18.0",
+          "sha256": "08c3cd52ed1043b743679350db2569971b0d5fb4aff0149d0681d7cc79d4755e"
+        },
+        {
+          "version": "0.3.9",
+          "date": "2026-11-14T22:49:08Z",
+          "localizedDescription": "Full Changelog: https://github.com/antazidumhalte0j/aiostreams-ios/compare/v0.3.7...v0.3.9",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.9/AIOStreams-tvOS.ipa",
+          "size": 11806104,
+          "minOSVersion": "18.0"
+        },
+        {
+          "version": "0.3.7",
+          "date": "2026-11-14T19:25:09Z",
+          "localizedDescription": "Full Changelog: https://github.com/antazidumhalte0j/aiostreams-ios/compare/v0.3.5...v0.3.7",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.7/AIOStreams-tvOS.ipa",
+          "size": 11752665,
+          "minOSVersion": "18.0"
+        },
+        {
+          "version": "0.3.5",
+          "date": "2026-11-14T13:08:10Z",
+          "localizedDescription": "Unsigned IPAs. Sign them when you install them.",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.5/AIOStreams-tvOS.ipa",
+          "size": 11242745,
+          "minOSVersion": "18.0"
+        },
+        {
+          "version": "0.3.0",
+          "date": "2026-11-13T20:22:49Z",
+          "localizedDescription": "Unsigned IPAs. Sign them when you install them.",
+          "downloadURL": "https://github.com/antazidumhalte0j/aiostreams-ios/releases/download/v0.3.0/AIOStreams-tvOS.ipa",
+          "size": 11695417,
+          "minOSVersion": "18.0"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [
+          "com.apple.security.application-groups"
+        ],
+        "privacy": {
+          "NSLocalNetworkUsageDescription": "AIOStreams connects to your server and streams on your local network."
+        }
+      }
+    }
+  ],
+  "news": []
+}
