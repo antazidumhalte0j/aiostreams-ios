@@ -128,6 +128,7 @@
 "Donate" = "Fazer um donativo";
 "Earlier" = "Antes";
 "Ended" = "Terminada";
+"Ends at %@" = "Termina às %@";
 "Enter the code the other device shows to sign it in to this account." = "Introduza o código que o outro dispositivo mostra para iniciar sessão nesta conta.";
 "Episodes" = "Episódios";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "Equilibra as cenas altas e baixas, para ouvir com o volume baixo. Não se aplica ao som enviado diretamente (passthrough).";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "O que as suas colunas ou recetor aceitam. O som surround com mais canais é misturado para menos, mantendo os diálogos.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "Quando uma versão tem mais do que um tipo de faixa de áudio, é reproduzida a primeira destas que tiver.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "Quando uma versão tem mais do que uma legenda no seu idioma, aparece a primeira destas que tiver. Os comentários ficam em último.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "Onde as legendas de cada título começam. Abaixo de zero, aparecem mais cedo. O painel Sincronização do leitor continua a ajustá-las enquanto vê.";
 "Where the app is made, and where to report a problem." = "Onde a app é desenvolvida e onde comunicar um problema.";
 "White" = "Branco";
 "Who you are signed in as" = "A conta com que iniciou sessão";

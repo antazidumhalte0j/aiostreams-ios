@@ -128,6 +128,7 @@
 "Donate" = "捐赠";
 "Earlier" = "更早";
 "Ended" = "已完结";
+"Ends at %@" = "结束时间：%@";
 "Enter the code the other device shows to sign it in to this account." = "输入另一台设备显示的代码，让它登录此账户。";
 "Episodes" = "剧集";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "平衡较大声和较小声的场景，方便低音量收听。不适用于直通音频。";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "扬声器或接收器接收的音频格式。声道数更多的环绕声会混音降级，同时保留对白。";
 "When a version has more than one kind of audio track, the first of these it has plays." = "当某个版本包含多种音轨时，会播放列表中优先级最高且该版本具备的音轨。";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "当某个版本包含多条你所用语言的字幕时，会显示列表中优先级最高且该版本具备的字幕。评论字幕优先级最低。";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "每个影片字幕的起始偏移。小于零则提前显示。观看时仍可在播放器的“时间同步”面板中调整。";
 "Where the app is made, and where to report a problem." = "了解应用的开发来源，以及如何报告问题。";
 "White" = "白色";
 "Who you are signed in as" = "当前登录的用户";

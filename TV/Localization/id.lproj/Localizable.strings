@@ -128,6 +128,7 @@
 "Donate" = "Donasi";
 "Earlier" = "Sebelumnya";
 "Ended" = "Selesai";
+"Ends at %@" = "Berakhir pukul %@";
 "Enter the code the other device shows to sign it in to this account." = "Masukkan kode yang ditampilkan perangkat lain untuk memasukkannya ke akun ini.";
 "Episodes" = "Episode";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "Menyeimbangkan suara adegan yang keras dan pelan agar nyaman didengarkan pada volume rendah. Tidak berlaku untuk audio passthrough.";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "Format yang didukung speaker atau penerima audio Anda. Audio surround dengan lebih banyak saluran akan dicampur ke jumlah saluran yang didukung, dengan dialog tetap dipertahankan.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "Jika suatu versi memiliki lebih dari satu jenis trek audio, jenis pertama dalam daftar ini yang tersedia akan diputar.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "Jika suatu versi memiliki lebih dari satu subtitel dalam bahasa Anda, jenis pertama dalam daftar ini yang tersedia akan ditampilkan. Subtitel komentar ditempatkan paling akhir.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "Titik awal subtitel setiap judul. Di bawah nol menampilkannya lebih awal. Panel Waktu di pemutar tetap bisa menggesernya saat menonton.";
 "Where the app is made, and where to report a problem." = "Tempat aplikasi dikembangkan dan tempat melaporkan masalah.";
 "White" = "Putih";
 "Who you are signed in as" = "Identitas pengguna yang Anda gunakan untuk masuk";

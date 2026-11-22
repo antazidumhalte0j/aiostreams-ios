@@ -128,6 +128,7 @@
 "Donate" = "Bağış yap";
 "Earlier" = "Daha önce";
 "Ended" = "Bitti";
+"Ends at %@" = "Bitiş: %@";
 "Enter the code the other device shows to sign it in to this account." = "Diğer cihazı bu hesapla giriş yaptırmak için gösterdiği kodu gir.";
 "Episodes" = "Bölümler";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "Düşük sesle dinlerken yüksek ve alçak sesli sahneleri dengeler. Doğrudan aktarılan sese uygulanmaz.";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "Hoparlörlerinin veya alıcının desteklediği kanal sayısı. Daha fazla kanallı çevresel ses, diyaloglar korunarak bu sayıya indirilir.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "Bir sürümde birden fazla ses parçası türü varsa bu listedeki ilk mevcut tür oynatılır.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "Bir sürümde tercih ettiğin dilde birden fazla altyazı varsa bu listedeki ilk mevcut tür gösterilir. Yorum altyazıları en sona bırakılır.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "Her başlığın altyazılarının başladığı yer. Sıfırın altı onları daha erken gösterir. Oynatıcının Zamanlama paneli izlerken onları yine kaydırır.";
 "Where the app is made, and where to report a problem." = "Uygulamanın geliştirildiği ve sorun bildirebileceğin yer.";
 "White" = "Beyaz";
 "Who you are signed in as" = "Oturum açtığın hesap";

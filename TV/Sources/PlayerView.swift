@@ -96,6 +96,7 @@ final class PlayerModel: ObservableObject {
     private let remember: (audio: Bool, subtitles: Bool)
     private let audioShaping: AudioShaping
     private let defaultAudioDelay: Double
+    private let defaultSubtitleDelay: Double
     /// Live TV's display matching: whether a channel switches the TV's frame rate, and its range.
     private let liveDisplay: (rate: Bool, range: Bool)
     /// Display criteria this player wrote itself, which it clears as it stops.
@@ -120,7 +121,7 @@ final class PlayerModel: ObservableObject {
 
     init(request: PlayRequest, client: JellyfinClient, tracks: TrackRules = TrackRules(), baseTracks: TrackRules = TrackRules(),
          remember: (audio: Bool, subtitles: Bool) = (true, true), audioShaping: AudioShaping = AudioShaping(),
-         audioDelay: Double = 0,
+         audioDelay: Double = 0, subtitleDelay: Double = 0,
          liveDisplay: (rate: Bool, range: Bool) = (true, true),
          look: SubtitleLook = SubtitleLook(), speakers: SpatialSpeakerLayout? = .l714, animeUpscaling: Bool = false, toneMapNits: Int = 0,
          userId: String? = nil, rules: PlayerRules = PlayerRules()) {
@@ -132,6 +133,7 @@ final class PlayerModel: ObservableObject {
         self.remember = remember
         self.audioShaping = audioShaping
         defaultAudioDelay = audioDelay
+        defaultSubtitleDelay = subtitleDelay
         self.liveDisplay = liveDisplay
         self.speakers = speakers
         self.animeUpscaling = animeUpscaling
@@ -285,6 +287,7 @@ final class PlayerModel: ObservableObject {
 
         // The engine is shared: a title starts at the usual delay, whatever the last one was set to.
         audioDelay = defaultAudioDelay
+        if defaultSubtitleDelay != 0 { setSubtitleDelay(defaultSubtitleDelay) }
         overview = request.item.overview
         Task { [weak self] in await self?.loadExtras() }
         AppLog.info("player", "load \(request.item.id) source=\(request.source.ownId) host=\(url.host ?? "?")")

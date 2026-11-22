@@ -128,6 +128,7 @@
 "Donate" = "Donează";
 "Earlier" = "Mai devreme";
 "Ended" = "Încheiat";
+"Ends at %@" = "Se termină la %@";
 "Enter the code the other device shows to sign it in to this account." = "Introdu codul afișat de celălalt dispozitiv pentru a-l conecta la acest cont.";
 "Episodes" = "Episoade";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "Echilibrează scenele cu sunet puternic și cele cu sunet încet, pentru a putea asculta la volum redus. Nu se aplică sunetului transmis către alte dispozitive.";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "Ce acceptă boxele sau receiverul tău. Sunetul surround cu mai multe canale este redus, păstrând dialogul.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "Când o versiune are mai multe tipuri de piste audio, se redă primul dintre acestea pe care îl are.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "Când o versiune are mai multe subtitrări în limba ta, se afișează prima dintre acestea pe care o are. Comentariul vine ultimul.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "De unde încep subtitrările fiecărui titlu. Sub zero apar mai devreme. Panoul Sincronizare din player le mută în continuare în timp ce vizionezi.";
 "Where the app is made, and where to report a problem." = "Unde este realizată aplicația și unde poți raporta o problemă.";
 "White" = "Alb";
 "Who you are signed in as" = "Cine ești conectat";

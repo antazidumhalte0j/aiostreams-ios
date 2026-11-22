@@ -128,6 +128,7 @@
 "Donate" = "Derma";
 "Earlier" = "Lebih awal";
 "Ended" = "Tamat";
+"Ends at %@" = "Tamat pada %@";
 "Enter the code the other device shows to sign it in to this account." = "Masukkan kod yang dipaparkan oleh peranti lain untuk melog masuknya ke akaun ini.";
 "Episodes" = "Episod";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "Menseimbangkan babak kuat dan perlahan, untuk pendengaran pada kelantangan rendah.";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "Kapasiti pembesar suara atau penerima anda.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "Apabila sesuatu versi mempunyai lebih daripada satu jenis trek audio, trek pertama yang sepadan akan dimainkan.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "Apabila sesuatu versi mempunyai lebih daripada satu sarikata dalam bahasa anda, sarikata pertama yang sepadan akan dipaparkan.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "Titik mula sari kata setiap tajuk. Di bawah sifar memaparkannya lebih awal. Panel Masa dalam pemain masih boleh mengalihkannya semasa menonton.";
 "Where the app is made, and where to report a problem." = "Tempat aplikasi ini dihasilkan, dan tempat untuk melaporkan masalah.";
 "White" = "Putih";
 "Who you are signed in as" = "Identiti anda yang sedang log masuk";

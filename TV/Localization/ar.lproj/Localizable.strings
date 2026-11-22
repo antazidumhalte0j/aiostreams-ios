@@ -128,6 +128,7 @@
 "Donate" = "تبرّع";
 "Earlier" = "سابقًا";
 "Ended" = "منتهٍ";
+"Ends at %@" = "ينتهي في %@";
 "Enter the code the other device shows to sign it in to this account." = "أدخل الرمز الذي يعرضه الجهاز الآخر لتسجيل دخوله إلى هذا الحساب.";
 "Episodes" = "الحلقات";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "يوازن بين المشاهد الصاخبة والهادئة، للاستماع بصوت منخفض. لا ينطبق على الصوت الممرَّر كما هو.";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "ما تستقبله مكبرات الصوت أو جهاز الاستقبال. أما الصوت المحيطي الأكثر قنوات فيُدمج في عدد أقل، مع الإبقاء على الحوار.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "عندما تحتوي النسخة على أكثر من نوع من المسارات الصوتية، يُشغَّل أول ما تملكه من هذه.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "عندما تحتوي النسخة على أكثر من ترجمة بلغتك، يُعرض أول ما تملكه من هذه. ويأتي التعليق أخيرًا.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "نقطة بدء ترجمات كل عنوان. القيم الأقل من الصفر تُظهرها مبكرًا. ولا تزال لوحة التوقيت في المشغّل تحرّكها أثناء المشاهدة.";
 "Where the app is made, and where to report a problem." = "أين يُصنع التطبيق، وأين يُبلَّغ عن مشكلة.";
 "White" = "أبيض";
 "Who you are signed in as" = "المستخدم الذي سجّلت الدخول به";

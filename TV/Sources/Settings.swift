@@ -214,6 +214,10 @@ final class Preferences: ObservableObject {
     @Published var audioDelayMs: Int = UserDefaults.standard.integer(forKey: "audio.delayMs") {
         didSet { UserDefaults.standard.set(audioDelayMs, forKey: "audio.delayMs") }
     }
+    /// Milliseconds, -10000 to 10000; positive shows subtitles later. Where a title starts.
+    @Published var subtitleDelayMs: Int = UserDefaults.standard.integer(forKey: "subtitle.delayMs") {
+        didSet { UserDefaults.standard.set(subtitleDelayMs, forKey: "subtitle.delayMs") }
+    }
 
     /// What the engine shapes the sound with, for these settings.
     var audioShaping: AudioShaping {
@@ -646,6 +650,12 @@ struct SettingsView: View {
                 }
                 configToggle(L("Remember picks per show"), key: "RememberSubtitleSelections", on: prefs.rememberSubtitles)
                 note(L("Subtitles you pick or turn off while watching a show stay that way for its other episodes. Picking what the settings above would show forgets it."))
+                row(L("Delay: %@", secondsName(prefs.subtitleDelayMs)), value: "") {
+                    chooser = Chooser(title: L("Delay: %@", secondsName(prefs.subtitleDelayMs)),
+                                      options: stride(from: -10000, through: 10000, by: 100).map { (secondsName($0), String($0)) },
+                                      current: String(prefs.subtitleDelayMs)) { prefs.subtitleDelayMs = Int($0) ?? 0 }
+                }
+                note(L("Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch."))
             }
             section(L("Subtitle style"), note: L("The same style as the web app's, on every device you sign in to.")) {
                 synced(L("Size"), key: "subtitleSize", fallback: "normal",
@@ -1075,6 +1085,10 @@ struct SettingsView: View {
     private func nitsName(_ nits: Int) -> String { nits == 0 ? L("Off") : L("%@ nits", String(nits)) }
 
     private func boostName(_ db: Int) -> String { db == 0 ? L("Off") : L("+%@ dB", String(db)) }
+
+    private func secondsName(_ ms: Int) -> String {
+        ms == 0 ? L("In sync") : String(format: "%+.1f s", Double(ms) / 1000)
+    }
 
     private func delayName(_ ms: Int) -> String {
         ms == 0 ? L("In sync") : ms > 0 ? L("+%@ ms", String(ms)) : L("−%@ ms", String(-ms))

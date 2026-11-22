@@ -78,6 +78,7 @@ struct PlayerScreen: View {
             remember: (prefs.rememberAudio, prefs.rememberSubtitles),
             audioShaping: prefs.audioShaping,
             audioDelay: Double(prefs.audioDelayMs) / 1000,
+            subtitleDelay: Double(prefs.subtitleDelayMs) / 1000,
             liveDisplay: (prefs.liveMatchFrameRate, prefs.liveMatchDynamicRange),
             look: prefs.subtitleLook,
             speakers: prefs.speakers,
@@ -521,14 +522,22 @@ private struct PlayerChrome: View {
                 }
             }
             Spacer()
-            if prefs.showClock {
-                // The time of day, as the web app's player shows it.
-                TimelineView(.everyMinute) { context in
-                    Text(prefs.time(context.date))
-                        .font(Theme.font(17, .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.gray200)
+            // The time of day, as the web app's player shows it, with when the title ends beneath it.
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                VStack(alignment: .trailing, spacing: Theme.px(4)) {
+                    if prefs.showClock {
+                        Text(prefs.time(context.date))
+                            .font(Theme.font(17, .medium))
+                            .foregroundStyle(Theme.gray200)
+                    }
+                    if !model.isLive, model.duration > 0 {
+                        let left = max(model.duration - model.position, 0) / max(model.speed, 0.1)
+                        Text(L("Ends at %@", prefs.time(context.date.addingTimeInterval(left))))
+                            .font(Theme.font(Theme.sm))
+                            .foregroundStyle(Theme.gray400)
+                    }
                 }
+                .monospacedDigit()
             }
         }
         .padding(.horizontal, Theme.px(32))

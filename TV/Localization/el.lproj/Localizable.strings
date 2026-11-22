@@ -128,6 +128,7 @@
 "Donate" = "Δωρεά";
 "Earlier" = "Νωρίτερα";
 "Ended" = "Ολοκληρώθηκε";
+"Ends at %@" = "Τελειώνει στις %@";
 "Enter the code the other device shows to sign it in to this account." = "Πληκτρολόγησε τον κωδικό που δείχνει η άλλη συσκευή για να συνδεθεί σε αυτόν τον λογαριασμό.";
 "Episodes" = "Επεισόδια";
 "Evens out loud and quiet scenes, for listening at a low volume. Not for sound passed through." = "Εξισορροπεί τις δυνατές και τις ήσυχες σκηνές, για ακρόαση σε χαμηλή ένταση. Δεν εφαρμόζεται στον ήχο που μεταβιβάζεται απευθείας.";
@@ -471,6 +472,7 @@
 "What your speakers or receiver take. Surround sound with more is mixed down, with its dialogue kept in." = "Τι υποστηρίζουν τα ηχεία ή ο ενισχυτής σου. Ο περιβάλλων ήχος με περισσότερα κανάλια μετατρέπεται σε λιγότερα, διατηρώντας τους διαλόγους.";
 "When a version has more than one kind of audio track, the first of these it has plays." = "Όταν μια έκδοση διαθέτει περισσότερους από έναν τύπους κομματιού ήχου, αναπαράγεται ο πρώτος διαθέσιμος από αυτή τη λίστα.";
 "When a version has more than one subtitle in your language, the first of these it has shows. Commentary comes last." = "Όταν μια έκδοση διαθέτει περισσότερους από έναν υπότιτλους στη γλώσσα σου, εμφανίζεται ο πρώτος διαθέσιμος από αυτή τη λίστα. Ο σχολιασμός έρχεται τελευταίος.";
+"Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch." = "Πού ξεκινούν οι υπότιτλοι κάθε τίτλου. Κάτω από το μηδέν εμφανίζονται νωρίτερα. Ο πίνακας Συγχρονισμός του προγράμματος αναπαραγωγής τούς μετακινεί ακόμα ενώ παρακολουθείτε.";
 "Where the app is made, and where to report a problem." = "Πού αναπτύσσεται η εφαρμογή και πού μπορείς να αναφέρεις ένα πρόβλημα.";
 "White" = "Λευκό";
 "Who you are signed in as" = "Ο χρήστης με τον οποίο έχεις συνδεθεί";

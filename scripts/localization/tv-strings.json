@@ -3376,6 +3376,22 @@
       "ro": "Meniurile, listele, câmpurile și cardurile de deasupra imaginii stau pe suprafața de sticlă în loc de culoarea ei. Dispozitivele mai lente pot resimți desenarea suplimentară.",
       "tr": "Görselin üzerindeki menüler, listeler, alanlar ve kartlar rengi yerine cam yüzeyin üzerinde durur. Yavaş cihazlar ek çizimi hissedebilir.",
       "zh-Hans": "图片上方的菜单、列表、输入框和卡片使用玻璃表面，而不是其颜色。较慢的设备可能会感到额外的绘制负担。"
+    },
+    "Where every title's subtitles start. Below zero shows them earlier. The player's Timing panel still moves them while you watch.": {
+      "de": "Wo die Untertitel jedes Titels beginnen. Unter null erscheinen sie früher. Im Player lassen sie sich unter „Timing“ weiterhin beim Ansehen verschieben.",
+      "el": "Πού ξεκινούν οι υπότιτλοι κάθε τίτλου. Κάτω από το μηδέν εμφανίζονται νωρίτερα. Ο πίνακας Συγχρονισμός του προγράμματος αναπαραγωγής τούς μετακινεί ακόμα ενώ παρακολουθείτε.",
+      "es": "Dónde empiezan los subtítulos de cada título. Por debajo de cero aparecen antes. El panel Sincronización del reproductor los sigue moviendo mientras ves.",
+      "fr": "Le point de départ des sous-titres de chaque titre. En dessous de zéro, ils s’affichent plus tôt. Le panneau Synchronisation du lecteur les décale toujours pendant la lecture.",
+      "id": "Titik awal subtitel setiap judul. Di bawah nol menampilkannya lebih awal. Panel Waktu di pemutar tetap bisa menggesernya saat menonton.",
+      "it": "Da dove partono i sottotitoli di ogni titolo. Sotto lo zero appaiono prima. Il pannello Sincronizzazione del player li sposta ancora durante la visione.",
+      "ms": "Titik mula sari kata setiap tajuk. Di bawah sifar memaparkannya lebih awal. Panel Masa dalam pemain masih boleh mengalihkannya semasa menonton.",
+      "pl": "Od którego miejsca zaczynają się napisy każdego tytułu. Poniżej zera pojawiają się wcześniej. Panel Synchronizacja w odtwarzaczu nadal je przesuwa podczas oglądania.",
+      "pt-BR": "Onde as legendas de cada título começam. Abaixo de zero, elas aparecem antes. O painel Sincronia do player ainda as ajusta enquanto você assiste.",
+      "pt": "Onde as legendas de cada título começam. Abaixo de zero, aparecem mais cedo. O painel Sincronização do leitor continua a ajustá-las enquanto vê.",
+      "tr": "Her başlığın altyazılarının başladığı yer. Sıfırın altı onları daha erken gösterir. Oynatıcının Zamanlama paneli izlerken onları yine kaydırır.",
+      "zh-Hans": "每个影片字幕的起始偏移。小于零则提前显示。观看时仍可在播放器的“时间同步”面板中调整。",
+      "ar": "نقطة بدء ترجمات كل عنوان. القيم الأقل من الصفر تُظهرها مبكرًا. ولا تزال لوحة التوقيت في المشغّل تحرّكها أثناء المشاهدة.",
+      "ro": "De unde încep subtitrările fiecărui titlu. Sub zero apar mai devreme. Panoul Sincronizare din player le mută în continuare în timp ce vizionezi."
     }
   },
   "plurals": {
