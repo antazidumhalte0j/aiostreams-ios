@@ -178,18 +178,25 @@ struct SignInView: View {
                 .font(Theme.font(Theme.xl2, .semibold))
                 .foregroundStyle(Theme.gray200)
             if !users.isEmpty {
-                HStack(spacing: Theme.px(40)) {
-                    ForEach(users) { user in
-                        Button {
-                            // Asked who's watching, whoever was carries on as they were.
-                            if session.asking && user.id == session.userId { session.carryOn(); return }
-                            name = user.name ?? ""
-                            password = ""
-                            if user.hasPassword == false { signIn() } else { mode = .password(user) }
-                        } label: {
-                            UserAvatar(user: user, url: avatarURL(user))
+                // Five to a row, as the web app lays out a long list; past two rows they scroll.
+                let rows = stride(from: 0, to: users.count, by: Self.perRow).map {
+                    Array(users[$0..<min($0 + Self.perRow, users.count)])
+                }
+                let grid = VStack(spacing: Theme.px(28)) {
+                    ForEach(rows.indices, id: \.self) { row in
+                        HStack(spacing: Theme.px(40)) {
+                            ForEach(rows[row]) { user in avatarButton(user) }
                         }
-                        .buttonStyle(AvatarStyle())
+                    }
+                }
+                .padding(.vertical, Theme.px(12))
+                Group {
+                    if rows.count > 2 {
+                        ScrollView { grid.frame(maxWidth: .infinity) }
+                            .scrollClipDisabled()
+                            .frame(maxHeight: Theme.px(310))
+                    } else {
+                        grid
                     }
                 }
                 .focusSection()
@@ -205,6 +212,21 @@ struct SignInView: View {
             .padding(.top, Theme.px(8))
             .focusSection()
         }
+    }
+
+    private static let perRow = 5
+
+    private func avatarButton(_ user: PublicUser) -> some View {
+        Button {
+            // Asked who's watching, whoever was carries on as they were.
+            if session.asking && user.id == session.userId { session.carryOn(); return }
+            name = user.name ?? ""
+            password = ""
+            if user.hasPassword == false { signIn() } else { mode = .password(user) }
+        } label: {
+            UserAvatar(user: user, url: avatarURL(user))
+        }
+        .buttonStyle(AvatarStyle())
     }
 
     private func passwordForm(_ user: PublicUser) -> some View {
