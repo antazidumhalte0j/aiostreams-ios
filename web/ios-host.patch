@@ -1,3 +1,141 @@
+diff --git a/packages/web/src/app/live-tv/_components/guide.tsx b/packages/web/src/app/live-tv/_components/guide.tsx
+index 9b72db66..409d5563 100644
+--- a/packages/web/src/app/live-tv/_components/guide.tsx
++++ b/packages/web/src/app/live-tv/_components/guide.tsx
+@@ -14,7 +14,10 @@ import { useOpenItemMenu } from '@/components/media/item-menu';
+ 
+ const ROW = 64;
+ const RULER = 32;
+-const CHANNEL_COLUMN = 264;
++/** A phone, where the iOS app shows the guide too: channels by number and logo only. */
++export const COMPACT_GUIDE =
++  typeof screen !== 'undefined' && Math.min(screen.width, screen.height) < 600;
++const CHANNEL_COLUMN = COMPACT_GUIDE ? 112 : 264;
+ const PX_PER_MINUTE = 5;
+ const MINUTE = 60_000;
+ const DAY = 24 * 60 * MINUTE;
+@@ -59,7 +62,9 @@ export function GuidePlaceholder({ className }: { className?: string }) {
+           >
+             <span className="w-8 flex-none" />
+             <div className="h-10 w-16 flex-none rounded-md bg-white/5" />
+-            <div className="h-3 flex-1 rounded-full bg-white/5" />
++            {!COMPACT_GUIDE && (
++              <div className="h-3 flex-1 rounded-full bg-white/5" />
++            )}
+           </div>
+           {PLACEHOLDER_ROWS[i % PLACEHOLDER_ROWS.length].map((length, j) => (
+             <div
+@@ -500,7 +505,12 @@ const GuideRow = React.memo(function GuideRow({
+                 <span className="absolute end-1 top-1 size-2 rounded-full bg-brand-500" />
+               )}
+             </div>
+-            <span className="line-clamp-2 min-w-0 text-sm font-semibold leading-tight [overflow-wrap:anywhere]">
++            <span
++              className={cn(
++                'line-clamp-2 min-w-0 text-sm font-semibold leading-tight [overflow-wrap:anywhere]',
++                COMPACT_GUIDE && 'sr-only'
++              )}
++            >
+               {channel.Name}
+             </span>
+           </>
+diff --git a/packages/web/src/app/live-tv/page.tsx b/packages/web/src/app/live-tv/page.tsx
+index 66970479..f1eb771b 100644
+--- a/packages/web/src/app/live-tv/page.tsx
++++ b/packages/web/src/app/live-tv/page.tsx
+@@ -58,7 +58,12 @@ import {
+   Preview,
+   ProgrammeDetails,
+ } from './_components/channel-details';
+-import { Guide, GuidePlaceholder, programmeAt } from './_components/guide';
++import {
++  COMPACT_GUIDE,
++  Guide,
++  GuidePlaceholder,
++  programmeAt,
++} from './_components/guide';
+ 
+ const WIDE = '(min-width: 1024px)';
+ const OWN_GROUPS = new Set([FAVOURITES, RECENT, ALL]);
+@@ -73,6 +78,9 @@ const DETAILS_DELAY_MS = 150;
+ /** The window less the bars around the page, so only the list scrolls. */
+ const PAGE_HEIGHT =
+   'h-[calc(100dvh-var(--nav-bar)-var(--mini-bar,0px)-var(--top-bar,0px))]';
++/** The guide's height on a phone: the screen below the bars. */
++const GUIDE_PHONE =
++  'flex-none h-[calc(100dvh-var(--nav-bar)-var(--mini-bar,0px)-var(--top-bar,0px)-1rem)]';
+ const PAGE = cn(
+   'relative z-[1] flex flex-col gap-4 px-4 lg:ps-0 lg:pe-10',
+   PAGE_TOP,
+@@ -159,6 +167,8 @@ export function LiveTvPage({
+   const docked = !!playback?.mini;
+   const playingId = docked ? playback.itemId : undefined;
+   const wide = useMediaQuery(WIDE);
++  // The iOS app offers the guide on phones too, where catch-up is played from.
++  const guideFits = wide || currentHost().name === 'ios-app';
+   const picker = useVersionPicker();
+ 
+   // The grid wants a wide screen, and is a TV's only once measured on one.
+@@ -173,7 +183,7 @@ export function LiveTvPage({
+     (view.data as { aiostreams?: { guide?: boolean } } | null | undefined)
+       ?.aiostreams?.guide === true ||
+     !!lineupStart.data?.pages[0]?.Items?.some((c) => c.CurrentProgram);
+-  const guide = wide && shownView === 'guide' && hasGuide;
++  const guide = guideFits && shownView === 'guide' && hasGuide;
+   const guideRange = useGuideRange().data;
+   const reminders = useReminders();
+   const reminded = React.useMemo(
+@@ -462,7 +472,7 @@ export function LiveTvPage({
+           value={group}
+           onChange={chooseGroup}
+         />
+-        {wide && hasGuide && (
++        {guideFits && hasGuide && (
+           <PillTabs
+             name="live-view"
+             options={[
+@@ -488,14 +498,18 @@ export function LiveTvPage({
+       <div
+         data-ui="live-tv"
+         data-view="guide"
+-        className={PAGE}
++        // A phone scrolls the header away and gives the guide the screen.
++        className={cn(PAGE, COMPACT_GUIDE && '!h-auto')}
+         onKeyDown={onDigit}
+       >
+         {numberShown}
+         {header}
+         <div
+           data-ui="live-top"
+-          className="flex h-[min(34%,20rem)] flex-none gap-6"
++          className={cn(
++            'flex h-[min(34%,20rem)] flex-none gap-6',
++            COMPACT_GUIDE && 'hidden'
++          )}
+         >
+           {shown ? (
+             <ProgrammeDetails
+@@ -521,10 +535,18 @@ export function LiveTvPage({
+           />
+         </div>
+         {loading ? (
+-          <GuidePlaceholder className="min-h-0 flex-1" />
++          <GuidePlaceholder
++            className={COMPACT_GUIDE ? GUIDE_PHONE : 'min-h-0 flex-1'}
++          />
+         ) : (
+           empty || (
+-            <div data-nav-start className="flex min-h-0 flex-1 flex-col pb-4">
++            <div
++              data-nav-start
++              className={cn(
++                'flex min-h-0 flex-col pb-4',
++                COMPACT_GUIDE ? GUIDE_PHONE : 'flex-1'
++              )}
++            >
+               <Guide
+                 className="min-h-0 flex-1"
+                 channels={channels}
 diff --git a/packages/web/src/app/settings/about.tsx b/packages/web/src/app/settings/about.tsx
 index ec7c7539..9ae886ef 100644
 --- a/packages/web/src/app/settings/about.tsx
