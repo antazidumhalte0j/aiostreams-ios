@@ -522,7 +522,7 @@ index 00000000..4ea8f42a
 +  },
 +};
 diff --git a/packages/web/src/lib/hosts/shell/player.ts b/packages/web/src/lib/hosts/shell/player.ts
-index 3d7083d5..1dab3f63 100644
+index 3d7083d5..3fd5e29a 100644
 --- a/packages/web/src/lib/hosts/shell/player.ts
 +++ b/packages/web/src/lib/hosts/shell/player.ts
 @@ -32,6 +32,7 @@ import {
@@ -533,7 +533,15 @@ index 3d7083d5..1dab3f63 100644
  import { currentHost } from '..';
  import { appBridge, type AppTrack, type ShellMessage } from './bridge';
  import { exoStats } from './exo-stats';
-@@ -144,6 +145,8 @@ export const appEngine: EngineFactory = (emit, { launched }) => {
+@@ -140,10 +141,16 @@ export const appEngine: EngineFactory = (emit, { launched }) => {
+       url: played.url,
+       headers: live ? liveHeaders(played.headers) : played.headers,
+       startMs: played.startMs,
++      // The length, which an origin read straight through can't tell (iOS app).
++      durationMs: played.source.RunTimeTicks
++        ? played.source.RunTimeTicks / 10_000
++        : undefined,
+       live,
        append,
        audioLanguages: audioCodes(prefs, played.source),
        subtitleLanguages: subtitleLanguages(prefs),

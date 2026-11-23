@@ -34,6 +34,8 @@ final class PlayerChannel {
     private var loadedURL: String?
     /// The headers the title loaded with, which reading its subtitle index needs too.
     private var loadedHeaders: [String: String] = [:]
+    /// The page's last load, which a source that fabricates byte ranges is loaded again from.
+    private var lastLoad: [String: Any]?
     private var indexTask: Task<[SubtitleIndex.Timeline]?, Never>?
     private var lineWatch: Task<Void, Never>?
     private var wantsPaused = false
@@ -169,6 +171,7 @@ final class PlayerChannel {
         case .ended:
             end("eof", error: nil)
         case .error(let message):
+            if loadSequentially() { return }
             end("error", error: message)
         @unknown default:
             break
@@ -184,6 +187,17 @@ final class PlayerChannel {
 
     private func event(_ name: String) {
         send(["type": "player-event", "name": name])
+    }
+
+    /// Once per title: a source the engine found fabricating byte ranges, loaded again to read
+    /// straight through. True when it did.
+    private func loadSequentially() -> Bool {
+        guard engine.errorInfo?.kind == .sourceFabricatesRanges, !ended, var message = lastLoad,
+              JSON.flag(message["sequential"]) != true, JSON.flag(message["live"]) != true else { return false }
+        AppLog.warn("player", "origin fabricates ranges; loading again as sequential")
+        message["sequential"] = true
+        load(message)
+        return true
     }
 
     private func end(_ reason: String, error: String?) {
@@ -382,6 +396,13 @@ final class PlayerChannel {
         var options = LoadOptions()
         options.httpHeaders = headers
         options.isLive = JSON.flag(message["live"]) ?? false
+        // An origin that answers byte ranges with other bytes, as IPTV catch-up archives do, is
+        // read straight through from its start, its length taken from the server (AE#958).
+        let sequential = JSON.flag(message["sequential"]) == true && !options.isLive
+        if sequential {
+            options.sequentialOrigin = true
+            options.declaredDurationSeconds = JSON.number(message["durationMs"]).flatMap { $0 > 0 ? $0 / 1000 : nil }
+        }
         options.preferredAudioLanguages = JSON.strings(message["audioLanguages"])
         // TrueHD Atmos and DTS:X with their heights, which iOS plays as Spatial Audio (OS 26 and later).
         options.objectAudioRendering = .render(.l714)
@@ -398,6 +419,7 @@ final class PlayerChannel {
         nativePickTypes = JSON.strings(message["subtitleTypes"])
         nativePicked = false
 
+        lastLoad = message
         generation += 1
         let current = generation
         loadTask?.cancel()
@@ -417,12 +439,14 @@ final class PlayerChannel {
         showVideo(true)
         mediaChanged()
         state(["idle": false])
-        AppLog.info("player", "load live=\(options.isLive) start=\(Int(startMs)) url=\(url.host ?? "?")")
+        AppLog.info("player", "load live=\(options.isLive) sequential=\(sequential) start=\(Int(startMs)) url=\(url.host ?? "?")")
 
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                try await self.engine.load(url: url, startPosition: startMs > 0 ? startMs / 1000 : nil, options: options)
+                // A straight read can't start partway.
+                let from = startMs > 0 && !sequential ? startMs / 1000 : nil
+                try await self.engine.load(url: url, startPosition: from, options: options)
                 guard current == self.generation else { return }
                 self.applyTransport()
                 self.event("loaded")
@@ -433,6 +457,7 @@ final class PlayerChannel {
                 // A newer load took its place.
             } catch {
                 guard current == self.generation else { return }
+                if self.loadSequentially() { return }
                 self.end("error", error: error.localizedDescription)
             }
         }
