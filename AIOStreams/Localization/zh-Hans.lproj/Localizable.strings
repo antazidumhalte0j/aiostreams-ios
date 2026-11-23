@@ -8,3 +8,7 @@
 "AIOStreams %@ is out. Install it the way you installed this copy." = "AIOStreams %@ 已发布。请用安装此副本的方式安装它。";
 "Later" = "稍后";
 "See the release" = "查看版本";
+"AIOStreams is taking a long time to start" = "AIOStreams 启动时间过长";
+"If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay." = "如果一直卡住，重置会像重新安装一样清除应用保存的数据和登录信息。你的下载内容会保留。";
+"Keep waiting" = "继续等待";
+"Reset" = "重置";

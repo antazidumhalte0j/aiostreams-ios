@@ -156,6 +156,93 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
         DownloadQueue.shared.send = { [weak self] message in self?.bridge.send(message) }
         bridge.onMessage = { [weak self] type, message in self?.handle(type, message) }
         webView.load(URLRequest(url: DemoMode.startURL ?? WebAssets.startURL))
+        stuckTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkStuck() }
+        }
+    }
+
+    // MARK: - A page stuck loading
+
+    /// Since when the page has shown nothing but its loading spinner, or not answered at all.
+    private var stuckSince: Date?
+    /// The reset was offered for this page load.
+    private var stuckOffered = false
+    private var probing = false
+    private var stuckTimer: Timer?
+    private static let stuckAfter: TimeInterval = 20
+
+    /// True while the whole page is one loading spinner, or blank.
+    private static let stuckProbe = """
+    (() => {
+      const big = (e) => {
+        const r = e.getBoundingClientRect();
+        return r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9;
+      };
+      if ([...document.querySelectorAll('.UI-LoadingOverlay__overlay')].some(big)) return true;
+      return !document.body || (!document.body.innerText.trim() && !document.querySelector('video'));
+    })()
+    """
+
+    /// Saved web data that went bad left the page on its spinner after every launch, and only
+    /// reinstalling helped (issue #10): after a while, offer to clear it instead.
+    private func checkStuck() {
+        // Never over something playing, whose page can show nothing on purpose.
+        guard !stuckOffered, presentedViewController == nil, player?.hasMedia != true, !fullscreen,
+              UIApplication.shared.applicationState == .active else {
+            stuckSince = nil
+            return
+        }
+        // An answer still outstanding from the last look counts as stuck too.
+        if probing {
+            noteStuck(true)
+            return
+        }
+        probing = true
+        webView.evaluateJavaScript(Self.stuckProbe) { [weak self] result, _ in
+            guard let self else { return }
+            probing = false
+            noteStuck((result as? Bool) == true)
+        }
+    }
+
+    private func noteStuck(_ stuck: Bool) {
+        guard stuck else {
+            stuckSince = nil
+            return
+        }
+        let since = stuckSince ?? Date()
+        stuckSince = since
+        if Date().timeIntervalSince(since) >= Self.stuckAfter { offerReset() }
+    }
+
+    private func offerReset() {
+        guard !stuckOffered, presentedViewController == nil else { return }
+        stuckOffered = true
+        AppLog.warn("app", "the page has been loading for \(Int(Self.stuckAfter))s; offering a reset")
+        let alert = UIAlertController(
+            title: String(localized: "AIOStreams is taking a long time to start"),
+            message: String(localized: "If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay."),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: String(localized: "Keep waiting"), style: .cancel) { [weak self] _ in
+            // Asks again if it is still stuck a while later.
+            self?.stuckSince = nil
+            self?.stuckOffered = false
+        })
+        alert.addAction(UIAlertAction(title: String(localized: "Reset"), style: .destructive) { [weak self] _ in
+            self?.resetWebData()
+        })
+        present(alert, animated: true)
+    }
+
+    private func resetWebData() {
+        AppLog.warn("app", "clearing the page's saved data")
+        let store = webView.configuration.websiteDataStore
+        store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { [weak self] in
+            guard let self else { return }
+            player?.pageLoading()
+            webView.load(URLRequest(url: WebAssets.startURL))
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -421,6 +508,8 @@ final class RootViewController: UIViewController, WKNavigationDelegate, WKUIDele
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         bridge.pageLoading()
         linksReady = false
+        stuckSince = nil
+        stuckOffered = false
         player?.pageLoading()
         if fullscreen { setFullscreen(false) }
     }

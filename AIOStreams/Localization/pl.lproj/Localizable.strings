@@ -8,3 +8,7 @@
 "AIOStreams %@ is out. Install it the way you installed this copy." = "Wyszedł AIOStreams %@. Zainstaluj go tak, jak tę kopię.";
 "Later" = "Później";
 "See the release" = "Zobacz wydanie";
+"AIOStreams is taking a long time to start" = "Uruchamianie AIOStreams trwa długo";
+"If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay." = "Jeśli aplikacja nadal się zawiesza, resetowanie usunie jej zapisane dane i logowania, tak jak ponowna instalacja. Pobrane pliki zostaną.";
+"Keep waiting" = "Czekaj dalej";
+"Reset" = "Resetuj";

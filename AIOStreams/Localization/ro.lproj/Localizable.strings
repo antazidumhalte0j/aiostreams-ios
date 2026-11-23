@@ -8,3 +8,7 @@
 "AIOStreams %@ is out. Install it the way you installed this copy." = "A apărut AIOStreams %@. Instalează-l la fel cum ai instalat această copie.";
 "Later" = "Mai târziu";
 "See the release" = "Vezi versiunea";
+"AIOStreams is taking a long time to start" = "AIOStreams pornește foarte greu";
+"If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay." = "Dacă rămâne blocată, resetarea șterge datele salvate și conectările aplicației, ca o reinstalare. Descărcările tale rămân.";
+"Keep waiting" = "Mai așteaptă";
+"Reset" = "Resetează";

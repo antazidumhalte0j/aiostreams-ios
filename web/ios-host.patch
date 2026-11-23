@@ -80,6 +80,81 @@ index e16a28a3..8e724dc9 100644
    typeof Worker === 'function' &&
    typeof OffscreenCanvas === 'function' &&
    typeof createImageBitmap === 'function';
+diff --git a/packages/web/src/lib/cache/store.ts b/packages/web/src/lib/cache/store.ts
+index 623fec50..42ee5b49 100644
+--- a/packages/web/src/lib/cache/store.ts
++++ b/packages/web/src/lib/cache/store.ts
+@@ -37,6 +37,7 @@ type Body =
+   | { id: string; type: string; blob: Blob };
+ 
+ const NAME = 'aiostreams-web-cache';
++const STALL_MS = 4_000;
+ const ENTRIES = 'entries';
+ const BODIES = 'bodies';
+ /** Reads only move an entry up the eviction order this often. */
+@@ -48,6 +49,14 @@ let opening: Promise<IDBDatabase | null> | null = null;
+ /** Null where the engine refuses storage, as private windows can. */
+ function open(): Promise<IDBDatabase | null> {
+   opening ??= new Promise((resolve) => {
++    // iOS: WebKit's database can stop answering, which left the app waiting
++    // for good; past this it goes without the cache and asks again next time.
++    let late = false;
++    const timer = setTimeout(() => {
++      late = true;
++      opening = null;
++      resolve(null);
++    }, STALL_MS);
+     try {
+       const request = indexedDB.open(NAME, 1);
+       request.onupgradeneeded = () => {
+@@ -59,14 +68,20 @@ function open(): Promise<IDBDatabase | null> {
+       };
+       request.onsuccess = () => {
+         const db = request.result;
++        clearTimeout(timer);
++        if (late) return db.close();
+         db.onversionchange = () => {
+           db.close();
+           opening = null;
+         };
+         resolve(db);
+       };
+-      request.onerror = () => resolve(null);
++      request.onerror = () => {
++        clearTimeout(timer);
++        resolve(null);
++      };
+     } catch {
++      clearTimeout(timer);
+       resolve(null);
+     }
+   });
+@@ -113,7 +128,24 @@ function touch(entry: Entry | undefined) {
+   }, 2_000);
+ }
+ 
+-async function read(id: string): Promise<Body | null> {
++/** As `fetched`, but null where the database doesn't answer in time. */
++function read(id: string): Promise<Body | null> {
++  return new Promise((resolve, reject) => {
++    const timer = setTimeout(() => resolve(null), STALL_MS);
++    fetched(id).then(
++      (body) => {
++        clearTimeout(timer);
++        resolve(body);
++      },
++      (error) => {
++        clearTimeout(timer);
++        reject(error);
++      }
++    );
++  });
++}
++
++async function fetched(id: string): Promise<Body | null> {
+   const db = await open();
+   if (!db) return null;
+   const tx = db.transaction([ENTRIES, BODIES]);
 diff --git a/packages/web/src/lib/downloads/index.ts b/packages/web/src/lib/downloads/index.ts
 index c7d13569..6b991f63 100644
 --- a/packages/web/src/lib/downloads/index.ts

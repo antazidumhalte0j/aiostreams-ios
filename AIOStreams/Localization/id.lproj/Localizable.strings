@@ -8,3 +8,7 @@
 "AIOStreams %@ is out. Install it the way you installed this copy." = "AIOStreams %@ sudah rilis. Pasang dengan cara yang sama seperti salinan ini.";
 "Later" = "Nanti";
 "See the release" = "Lihat rilis";
+"AIOStreams is taking a long time to start" = "AIOStreams lama sekali untuk dimulai";
+"If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay." = "Jika tetap macet, mengatur ulang akan menghapus data tersimpan dan sesi masuk aplikasi, seperti memasang ulang. Unduhan Anda tetap ada.";
+"Keep waiting" = "Tetap tunggu";
+"Reset" = "Atur ulang";

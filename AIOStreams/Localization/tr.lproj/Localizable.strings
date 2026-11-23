@@ -8,3 +8,7 @@
 "AIOStreams %@ is out. Install it the way you installed this copy." = "AIOStreams %@ çıktı. Bu kopyayı nasıl kurduysan öyle kur.";
 "Later" = "Sonra";
 "See the release" = "Sürüme bak";
+"AIOStreams is taking a long time to start" = "AIOStreams'in açılması uzun sürüyor";
+"If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay." = "Takılı kalmaya devam ederse sıfırlama, yeniden yükleme gibi uygulamanın kayıtlı verilerini ve oturumlarını siler. İndirmeleriniz kalır.";
+"Keep waiting" = "Beklemeye devam et";
+"Reset" = "Sıfırla";

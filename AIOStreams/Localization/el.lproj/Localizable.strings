@@ -8,3 +8,7 @@
 "AIOStreams %@ is out. Install it the way you installed this copy." = "Κυκλοφόρησε το AIOStreams %@. Εγκατέστησέ το όπως εγκατέστησες αυτό το αντίγραφο.";
 "Later" = "Αργότερα";
 "See the release" = "Δες την έκδοση";
+"AIOStreams is taking a long time to start" = "Το AIOStreams αργεί να ξεκινήσει";
+"If it stays stuck, resetting clears the app's saved data and sign-ins, as reinstalling would. Your downloads stay." = "Αν παραμείνει κολλημένο, η επαναφορά διαγράφει τα αποθηκευμένα δεδομένα και τις συνδέσεις της εφαρμογής, όπως μια επανεγκατάσταση. Οι λήψεις σας παραμένουν.";
+"Keep waiting" = "Συνέχεια αναμονής";
+"Reset" = "Επαναφορά";
