@@ -167,6 +167,58 @@ index 15b81ad2..78a73050 100644
          <Switch
            side="right"
            label={t`Only on Wi-Fi`}
+diff --git a/packages/web/src/features/player/gestures.ts b/packages/web/src/features/player/gestures.ts
+index 93ef6fd1..18f43867 100644
+--- a/packages/web/src/features/player/gestures.ts
++++ b/packages/web/src/features/player/gestures.ts
+@@ -19,6 +19,10 @@ const EDGE_PX = 24;
+ /** Swipes from this close to the top or bottom are the system's. */
+ const END_EDGE_PX = 40;
+ const PINCH_RATIO = 1.2;
++/** iOS: up and down set the levels only this far in from each side. */
++const LEVEL_ZONE = 0.3;
++/** iOS: a tap in the middle may wander this far and still be a tap. */
++const TAP_SLOP_PX = 32;
+ 
+ type Level = 'volume' | 'brightness';
+ 
+@@ -39,6 +43,8 @@ interface Press {
+   side: -1 | 1;
+   sideEdge: boolean;
+   endEdge: boolean;
++  /** Between the level zones, where up and down do nothing. */
++  middle: boolean;
+   kind: 'pending' | 'levels' | 'scrub' | 'held' | 'none';
+   swipe: Swipe | null;
+   /** Where the scrub started, past the move that made it one. */
+@@ -185,6 +191,10 @@ export function usePlayerGestures(gestures: Gestures) {
+       y: e.clientY,
+       side: e.clientX < r.left + r.width / 2 ? -1 : 1,
+       sideEdge: e.clientX - r.left < EDGE_PX || r.right - e.clientX < EDGE_PX,
++      middle:
++        currentHost().name === 'ios-app' &&
++        Math.abs(e.clientX - (r.left + r.width / 2)) <
++          r.width * (0.5 - LEVEL_ZONE),
+       endEdge:
+         e.clientY - r.top < END_EDGE_PX || r.bottom - e.clientY < END_EDGE_PX,
+       kind: 'pending',
+@@ -221,10 +231,13 @@ export function usePlayerGestures(gestures: Gestures) {
+     e.stopPropagation();
+     const dx = e.clientX - p.x;
+     const dy = e.clientY - p.y;
+-    if (p.kind === 'pending' && Math.hypot(dx, dy) > SWIPE_PX) {
++    const vertical = Math.abs(dy) > Math.abs(dx);
++    // The middle leaves taps room to wander, so they show the controls.
++    const slop = p.middle && vertical ? TAP_SLOP_PX : SWIPE_PX;
++    if (p.kind === 'pending' && Math.hypot(dx, dy) > slop) {
+       clearTimeout(p.timer);
+-      if (p.endEdge) p.kind = 'none';
+-      else if (Math.abs(dy) > Math.abs(dx)) {
++      if (p.endEdge || (p.middle && vertical)) p.kind = 'none';
++      else if (vertical) {
+         p.swipe = startSwipe(p.side, e.clientY, e.currentTarget.clientHeight);
+         p.kind = p.swipe ? 'levels' : 'none';
+       } else {
 diff --git a/packages/web/src/features/trailers/preview.tsx b/packages/web/src/features/trailers/preview.tsx
 index ce4f0344..0137b730 100644
 --- a/packages/web/src/features/trailers/preview.tsx
