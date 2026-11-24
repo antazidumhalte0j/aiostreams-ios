@@ -333,7 +333,9 @@ private struct PlayerChrome: View {
                 .onTapGesture {
                     if heldSelect { heldSelect = false; return }
                     input()
-                    reveal(.play)
+                    // One click plays or pauses, as Apple's player does, and shows where it is.
+                    model.togglePause()
+                    reveal(model.isLive ? .play : .bar)
                 }
 
             if let rate = model.heldRate {
@@ -940,6 +942,9 @@ private struct PlayerChrome: View {
         hideTask?.cancel()
         shown = false
         focus = .surface
+        // The surface only takes focus once it is focusable, a pass after the controls go; set
+        // then too, or the next click only finds it and a second one acts.
+        DispatchQueue.main.async { if !shown, panel == nil { focus = .surface } }
     }
 
     /// Hides the controls a few seconds after the last press, while the video plays.
