@@ -266,8 +266,13 @@ final class SubtitleOverlayView: UIView {
         let outline = outlineWidth(for: string)
         let inner = rect.insetBy(dx: outline, dy: outline)
         if look.box {
+            // Behind each line, hugging its text, as the web app's cue background and the Android
+            // app's caption background draw it, not one window round the whole cue.
             context.setFillColor(look.backColor.cgColor)
-            context.fill(rect.insetBy(dx: -outline * 2, dy: 0))
+            let pad = max(outline * 2, font(of: string) * 0.25)
+            for line in lineRects(string, width: inner.width) {
+                context.fill(line.offsetBy(dx: inner.minX, dy: inner.minY).insetBy(dx: -pad, dy: 0))
+            }
         }
         context.saveGState()
         if look.shadowSize > 0 {
@@ -286,6 +291,26 @@ final class SubtitleOverlayView: UIView {
         }
         string.draw(with: inner, options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
         context.restoreGState()
+    }
+
+    /// Where each laid-out line's text sits, alignment included, in the string's own box.
+    private func lineRects(_ string: NSAttributedString, width: CGFloat) -> [CGRect] {
+        let storage = NSTextStorage(attributedString: string)
+        let layout = NSLayoutManager()
+        layout.usesFontLeading = true
+        let container = NSTextContainer(size: CGSize(width: max(width, 1), height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        layout.addTextContainer(container)
+        storage.addLayoutManager(layout)
+        var rects: [CGRect] = []
+        layout.enumerateLineFragments(forGlyphRange: layout.glyphRange(for: container)) { fragment, _, _, glyphs, _ in
+            // The glyphs' own bounds, so a centred line's band is centred, but the fragment's height,
+            // so the bands of a cue's lines meet.
+            let glyphs = layout.boundingRect(forGlyphRange: glyphs, in: container)
+            guard glyphs.width > 0 else { return }
+            rects.append(CGRect(x: glyphs.minX, y: fragment.minY, width: glyphs.width, height: fragment.height))
+        }
+        return rects
     }
 
     private func font(of string: NSAttributedString) -> CGFloat {
