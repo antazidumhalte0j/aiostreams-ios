@@ -36,6 +36,10 @@ final class PlayerChannel {
     private var loadedHeaders: [String: String] = [:]
     /// The page's last load, which a source that fabricates byte ranges is loaded again from.
     private var lastLoad: [String: Any]?
+    /// A catch-up archive read straight through, and how far into the programme the session
+    /// playing it starts: the page's positions are the programme's, the engine's from that start.
+    private var archive: CatchUpArchive?
+    private var archiveOffset: Double = 0
     private var indexTask: Task<[SubtitleIndex.Timeline]?, Never>?
     private var lineWatch: Task<Void, Never>?
     private var wantsPaused = false
@@ -91,21 +95,23 @@ final class PlayerChannel {
             .store(in: &bag)
         engine.$duration.removeDuplicates()
             .sink { [weak self] duration in
-                guard duration > 0 else { return }
-                self?.state(["durationMs": JSON.finite(duration * 1000)])
+                guard let self, duration > 0 else { return }
+                self.state(["durationMs": JSON.finite((self.archive?.length ?? duration) * 1000)])
             }
             .store(in: &bag)
         engine.clock.$currentTime
             .throttle(for: .milliseconds(250), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] seconds in
                 guard let self, self.loadedURL != nil else { return }
-                self.state(["positionMs": JSON.finite(seconds * 1000)])
+                self.state(["positionMs": JSON.finite((seconds + self.archiveOffset) * 1000)])
             }
             .store(in: &bag)
         engine.$residentRanges
             .throttle(for: .seconds(1), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] ranges in
-                self?.state(["buffered": ranges.map { ["startMs": JSON.finite($0.lowerBound * 1000), "endMs": JSON.finite($0.upperBound * 1000)] }])
+                guard let self else { return }
+                let shift = self.archiveOffset
+                self.state(["buffered": ranges.map { ["startMs": JSON.finite(($0.lowerBound + shift) * 1000), "endMs": JSON.finite(($0.upperBound + shift) * 1000)] }])
             }
             .store(in: &bag)
         Publishers.CombineLatest(engine.$audioTracks, engine.$subtitleTracks)
@@ -187,6 +193,28 @@ final class PlayerChannel {
 
     private func event(_ name: String) {
         send(["type": "player-event", "name": name])
+    }
+
+    /// The engine's seek, or for a catch-up archive read straight through, where the session can't
+    /// reach: the archive asked for again from that minute.
+    private func seek(to seconds: Double, exact: Bool) {
+        guard let archive, var message = lastLoad else {
+            Task { await engine.seek(to: seconds, exact: exact) }
+            return
+        }
+        let local = seconds - archiveOffset
+        // What the session holds up to where it has read lands from its cache.
+        if local >= 0, let held = engine.residentRanges.last, held.contains(local) {
+            Task { await engine.seek(to: local, exact: exact) }
+            return
+        }
+        let offset = archive.offset(for: seconds)
+        AppLog.info("player", "catch-up: reopening the archive \(Int(offset))s in")
+        message["url"] = archive.address(from: offset)
+        message["archiveOffsetS"] = offset
+        message["sequential"] = true
+        message["startMs"] = 0
+        load(message)
     }
 
     /// Once per title: a source the engine found fabricating byte ranges, loaded again to read
@@ -306,8 +334,8 @@ final class PlayerChannel {
             "subtitle": JSON.id(engine.activeSubtitleTrackIndex),
         ]
         if loadedURL != nil {
-            full["positionMs"] = JSON.finite(engine.currentTime * 1000)
-            if engine.duration > 0 { full["durationMs"] = JSON.finite(engine.duration * 1000) }
+            full["positionMs"] = JSON.finite((engine.currentTime + archiveOffset) * 1000)
+            if engine.duration > 0 { full["durationMs"] = JSON.finite((archive?.length ?? engine.duration) * 1000) }
         }
         state(full)
         sendTracks()
@@ -330,7 +358,7 @@ final class PlayerChannel {
         case "player-seek":
             guard let ms = JSON.number(message["positionMs"]) else { break }
             let exact = (JSON.number(message["snapMs"]) ?? 0) <= 0
-            Task { await engine.seek(to: max(ms, 0) / 1000, exact: exact) }
+            seek(to: max(ms, 0) / 1000, exact: exact)
         case "player-subtitle-add": addSubtitle(message)
         case "subtitle-file": addSubtitleFile(message)
         case "player-style": style(message)
@@ -387,7 +415,7 @@ final class PlayerChannel {
     }
 
     private func load(_ message: [String: Any]) {
-        guard let text = message["url"] as? String, let url = Self.playable(text)
+        guard var text = message["url"] as? String, var url = Self.playable(text)
         else { return reject("only http(s) urls and downloaded files play") }
         let headers = (message["headers"] as? [String: Any] ?? [:]).compactMapValues { $0 as? String }
         let startMs = JSON.number(message["startMs"]) ?? 0
@@ -399,9 +427,27 @@ final class PlayerChannel {
         // An origin that answers byte ranges with other bytes, as IPTV catch-up archives do, is
         // read straight through from its start, its length taken from the server (AE#958).
         let sequential = JSON.flag(message["sequential"]) == true && !options.isLive
+        let length = JSON.number(message["durationMs"]).flatMap { $0 > 0 ? $0 / 1000 : nil }
+        if let shifted = JSON.number(message["archiveOffsetS"]), archive != nil {
+            // A reopen of the same archive from a later minute.
+            archiveOffset = shifted
+        } else {
+            archive = sequential ? CatchUpArchive(text, length: length) : nil
+            archiveOffset = 0
+            // A place to start from is reached by asking for the archive from that minute.
+            if let archive, startMs > 0 {
+                archiveOffset = archive.offset(for: startMs / 1000)
+                if archiveOffset > 0, let shifted = Self.playable(archive.address(from: archiveOffset)) {
+                    text = archive.address(from: archiveOffset)
+                    url = shifted
+                } else {
+                    archiveOffset = 0
+                }
+            }
+        }
         if sequential {
             options.sequentialOrigin = true
-            options.declaredDurationSeconds = JSON.number(message["durationMs"]).flatMap { $0 > 0 ? $0 / 1000 : nil }
+            options.declaredDurationSeconds = length.map { max($0 - archiveOffset, 1) }
         }
         options.preferredAudioLanguages = JSON.strings(message["audioLanguages"])
         // TrueHD Atmos and DTS:X with their heights, which iOS plays as Spatial Audio (OS 26 and later).
@@ -419,7 +465,7 @@ final class PlayerChannel {
         nativePickTypes = JSON.strings(message["subtitleTypes"])
         nativePicked = false
 
-        lastLoad = message
+        if JSON.number(message["archiveOffsetS"]) == nil { lastLoad = message }
         generation += 1
         let current = generation
         loadTask?.cancel()
@@ -439,7 +485,7 @@ final class PlayerChannel {
         showVideo(true)
         mediaChanged()
         state(["idle": false])
-        AppLog.info("player", "load live=\(options.isLive) sequential=\(sequential) start=\(Int(startMs)) url=\(url.host ?? "?")")
+        AppLog.info("player", "load live=\(options.isLive) sequential=\(sequential) archive=\(archive != nil) from=\(Int(archiveOffset))s start=\(Int(startMs)) url=\(url.host ?? "?")")
 
         loadTask = Task { [weak self] in
             guard let self else { return }

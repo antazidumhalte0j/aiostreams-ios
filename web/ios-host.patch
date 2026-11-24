@@ -40,10 +40,26 @@ index 9b72db66..409d5563 100644
              </span>
            </>
 diff --git a/packages/web/src/app/live-tv/page.tsx b/packages/web/src/app/live-tv/page.tsx
-index 66970479..f1eb771b 100644
+index 66970479..52f07343 100644
 --- a/packages/web/src/app/live-tv/page.tsx
 +++ b/packages/web/src/app/live-tv/page.tsx
-@@ -58,7 +58,12 @@ import {
+@@ -36,6 +36,7 @@ import { lastVersions } from '@/lib/playback/sources';
+ import {
+   canPreview,
+   expandPlayback,
++  closePlayback,
+   playDocked,
+   usePlayback,
+ } from '@/lib/playback/session';
+@@ -46,6 +47,7 @@ import type { BaseItemDto } from '@/lib/jellyfin/types';
+ import { PAGE_TOP, PageHeader, PageMessage } from '@/components/shell/page';
+ import { fitsAsPills, PillTabs } from '@/components/pill-tabs';
+ import { Combobox } from '@aiostreams/ui/combobox';
++import { Button } from '@aiostreams/ui/button';
+ import { Select } from '@aiostreams/ui/select';
+ import { useVersionPicker } from '@/features/versions/version-picker';
+ import {
+@@ -58,7 +60,12 @@ import {
    Preview,
    ProgrammeDetails,
  } from './_components/channel-details';
@@ -57,7 +73,7 @@ index 66970479..f1eb771b 100644
  
  const WIDE = '(min-width: 1024px)';
  const OWN_GROUPS = new Set([FAVOURITES, RECENT, ALL]);
-@@ -73,6 +78,9 @@ const DETAILS_DELAY_MS = 150;
+@@ -73,6 +80,9 @@ const DETAILS_DELAY_MS = 150;
  /** The window less the bars around the page, so only the list scrolls. */
  const PAGE_HEIGHT =
    'h-[calc(100dvh-var(--nav-bar)-var(--mini-bar,0px)-var(--top-bar,0px))]';
@@ -67,7 +83,7 @@ index 66970479..f1eb771b 100644
  const PAGE = cn(
    'relative z-[1] flex flex-col gap-4 px-4 lg:ps-0 lg:pe-10',
    PAGE_TOP,
-@@ -159,6 +167,8 @@ export function LiveTvPage({
+@@ -159,6 +169,8 @@ export function LiveTvPage({
    const docked = !!playback?.mini;
    const playingId = docked ? playback.itemId : undefined;
    const wide = useMediaQuery(WIDE);
@@ -76,7 +92,7 @@ index 66970479..f1eb771b 100644
    const picker = useVersionPicker();
  
    // The grid wants a wide screen, and is a TV's only once measured on one.
-@@ -173,7 +183,7 @@ export function LiveTvPage({
+@@ -173,7 +185,7 @@ export function LiveTvPage({
      (view.data as { aiostreams?: { guide?: boolean } } | null | undefined)
        ?.aiostreams?.guide === true ||
      !!lineupStart.data?.pages[0]?.Items?.some((c) => c.CurrentProgram);
@@ -85,7 +101,7 @@ index 66970479..f1eb771b 100644
    const guideRange = useGuideRange().data;
    const reminders = useReminders();
    const reminded = React.useMemo(
-@@ -462,7 +472,7 @@ export function LiveTvPage({
+@@ -462,7 +474,7 @@ export function LiveTvPage({
            value={group}
            onChange={chooseGroup}
          />
@@ -94,7 +110,7 @@ index 66970479..f1eb771b 100644
            <PillTabs
              name="live-view"
              options={[
-@@ -488,14 +498,18 @@ export function LiveTvPage({
+@@ -488,14 +500,18 @@ export function LiveTvPage({
        <div
          data-ui="live-tv"
          data-view="guide"
@@ -115,9 +131,11 @@ index 66970479..f1eb771b 100644
          >
            {shown ? (
              <ProgrammeDetails
-@@ -521,10 +535,18 @@ export function LiveTvPage({
+@@ -520,11 +536,20 @@ export function LiveTvPage({
+             className="h-full w-auto flex-none"
            />
          </div>
++        {COMPACT_GUIDE && docked && <PhoneNowPlaying />}
          {loading ? (
 -          <GuidePlaceholder className="min-h-0 flex-1" />
 +          <GuidePlaceholder
@@ -136,6 +154,38 @@ index 66970479..f1eb771b 100644
                <Guide
                  className="min-h-0 flex-1"
                  channels={channels}
+@@ -581,7 +606,7 @@ export function LiveTvPage({
+       {numberShown}
+       {header}
+       {!wide && docked && (
+-        <Preview playing onPress={expandPlayback} className="flex-none" />
++        <PhoneNowPlaying />
+       )}
+       <div className="flex min-h-0 flex-1 gap-8">
+         <div
+@@ -622,3 +647,22 @@ export function LiveTvPage({
+     </div>
+   );
+ }
++
++/**
++ * iOS app: on a phone, what plays docked in Live TV, small, with a way to stop it, as the
++ * page's own preview offers none and the mini player keeps away while the page holds it.
++ */
++function PhoneNowPlaying() {
++  return (
++    <div data-ui="live-now-playing" className="flex flex-none items-center gap-3">
++      <Preview playing onPress={expandPlayback} className="w-44 flex-none" />
++      <Button
++        intent="gray-outline"
++        className="ms-auto rounded-full"
++        onClick={() => closePlayback()}
++      >
++        {t`Close`}
++      </Button>
++    </div>
++  );
++}
 diff --git a/packages/web/src/app/settings/about.tsx b/packages/web/src/app/settings/about.tsx
 index ec7c7539..9ae886ef 100644
 --- a/packages/web/src/app/settings/about.tsx
